@@ -1,45 +1,98 @@
 package com.example;
 
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
-
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
+
+import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.ext.RuntimeDelegate;
+
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
+import org.glassfish.jersey.server.TracingConfig;
 
 /**
- * Main class.
+ * Microservice implemented using a lightweight HTTP server bundled in JDK.
  *
+ * @author Luiz Decaro
  */
-public class Main {
-    // Base URI the Grizzly HTTP server will listen on
-    public static final String BASE_URI = "http://localhost:8080/myapp/";
+@SuppressWarnings("restriction")
+public class Main extends ResourceConfig{
+	
 
+	public Main () {
+
+        // Tracing support.
+        property(ServerProperties.TRACING, TracingConfig.ON_DEMAND.name());
+	}
+		
     /**
-     * Starts Grizzly HTTP server exposing JAX-RS resources defined in this application.
-     * @return Grizzly HTTP server.
-     */
-    public static HttpServer startServer() {
-        // create a resource config that scans for JAX-RS resources and providers
-        // in com.example package
-        final ResourceConfig rc = new ResourceConfig().packages("com.example");
-
-        // create and start a new instance of grizzly http server
-        // exposing the Jersey application at BASE_URI
-        return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
-    }
-
-    /**
-     * Main method.
-     * @param args
+     * Starts the lightweight HTTP server serving the JAX-RS application.
+     *
+     * @return new instance of the lightweight HTTP server
      * @throws IOException
      */
-    public static void main(String[] args) throws IOException {
-        final HttpServer server = startServer();
-        System.out.println(String.format("Jersey app started with WADL available at "
-                + "%sapplication.wadl\nHit enter to stop it...", BASE_URI));
-        System.in.read();
-        server.stop();
+    static HttpServer startServer() throws IOException {
+        // create a new server listening at port 8080
+        final HttpServer server = HttpServer.create(new InetSocketAddress(getBaseURI().getPort()), 0);
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                server.stop(0);
+            }
+        }));
+
+        // create a handler wrapping the JAX-RS application
+        HttpHandler handler = RuntimeDelegate.getInstance().createEndpoint(new JaxRsApplication(), HttpHandler.class);
+
+        // map JAX-RS handler to the server root
+        server.createContext(getBaseURI().getPath(), handler);
+
+        // start the server
+        server.start();
+
+        return server;
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+    	
+    	
+        System.out.println("\"Hello-World\" Service");
+
+        startServer();
+
+        System.out.println("Application started.\n"
+                + "Try accessing " + getBaseURI() + " in the browser.\n"
+                + "Hit ^C to stop the application...");
+
+        Thread.currentThread().join();
+    }
+
+    private static int getPort(int defaultPort) {
+        final String port = System.getProperty("jersey.config.test.container.port");
+        if (null != port) {
+            try {
+                return Integer.parseInt(port);
+            } catch (NumberFormatException e) {
+                System.out.println("Value of jersey.config.test.container.port property"
+                        + " is not a valid positive integer [" + port + "]."
+                        + " Reverting to default [" + defaultPort + "].");
+            }
+        }
+        return defaultPort;
+    }
+
+    /**
+     * Gets base {@link URI}.
+     *
+     * @return base {@link URI}.
+     */
+    public static URI getBaseURI() throws UnknownHostException {
+        return UriBuilder.fromUri("http://"+InetAddress.getLocalHost().toString().substring(0,InetAddress.getLocalHost().toString().indexOf("/")+1)).port(getPort(8080)).build();
     }
 }
-
