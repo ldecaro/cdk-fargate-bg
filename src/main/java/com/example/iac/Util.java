@@ -22,8 +22,6 @@ import java.util.zip.ZipOutputStream;
 import software.amazon.awscdk.Environment;
 
 public class Util {
-    
-	private static final int BUFFER = 1024;
 	
 	public Util() {}
 	
@@ -73,16 +71,16 @@ public class Util {
     }
     
     
-    public void updateFile(String filename, String what, String newText) {
+    public void updateFile(String filenameSrc, String filenameDest, String what, String newText) {
     	
     	FileWriter fw		=	null;
     	BufferedWriter bw	=	null;
     	BufferedReader br	=	null;
     	FileReader	fr		=	null;
+        File file = new File( filenameSrc );
+        File file2= new File( filenameDest );
         try{
             String verify, putData;
-            File file = new File( filename );
-            File file2= new File( filename+".done");
             file2.createNewFile();
             fw = new FileWriter(file2);
             bw = new BufferedWriter(fw);
@@ -98,7 +96,6 @@ public class Util {
                 }                
             }
             bw.flush();
-
         }catch(IOException e){
         	e.printStackTrace();
         }finally {
@@ -110,6 +107,45 @@ public class Util {
         	}
         }
     }
+
+    public void updateFile(String filenameSrc, String filenameDest, Map<String,String> tokenReplacement) {
+    	
+    	FileWriter fw		=	null;
+    	BufferedWriter bw	=	null;
+    	BufferedReader br	=	null;
+    	FileReader	fr		=	null;
+        File file = new File( filenameSrc );
+        File file2= new File( filenameDest );
+        try{
+            String verify;
+            file2.createNewFile();
+            fw = new FileWriter(file2);
+            bw = new BufferedWriter(fw);
+            
+            fr = new FileReader(file);
+            br = new BufferedReader(fr);
+            while( (verify=br.readLine()) != null ){
+                       
+                if(verify != null){ 
+                    for(Map.Entry<String,String> entry:tokenReplacement.entrySet()){
+                        verify = verify.replace(entry.getKey(), entry.getValue());
+                    }
+                    bw.write(verify);
+                    bw.write(System.lineSeparator());
+                }                
+            }
+            bw.flush();
+        }catch(IOException e){
+        	e.printStackTrace();
+        }finally {
+        	try {
+        		if(bw != null) bw.close();
+        		if(br != null) br.close();
+        	}catch(Exception e) {
+        		System.out.println(e.getMessage());
+        	}
+        }
+    }    
 
 	public void createLoadTestFile(final String region, final String applicationName, final String envType) throws IOException{
 
@@ -204,5 +240,4 @@ public class Util {
 			fis.close();				
 		}
 	}
-    
 }

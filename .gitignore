@@ -1,4 +1,6 @@
 target/
+dist/
+.vscode/
 cdk.out/
 pom.xml.tag
 pom.xml.releaseBackup

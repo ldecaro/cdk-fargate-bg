@@ -13,7 +13,6 @@ import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.amazon.awscdk.services.ecs.Cluster;
 import software.amazon.awscdk.services.ecs.Compatibility;
-import software.amazon.awscdk.services.ecs.ContainerDefinition;
 import software.amazon.awscdk.services.ecs.ContainerDefinitionOptions;
 import software.amazon.awscdk.services.ecs.ContainerImage;
 import software.amazon.awscdk.services.ecs.DeploymentController;
@@ -104,7 +103,7 @@ public class ECSPlane extends Stack {
             .desiredCount(1)
             .cluster( cluster )
             .serviceName(serviceName+"-"+Util.randomString(4))
-            .deploymentController(DeploymentController.builder().type(DeploymentControllerType.ECS).build())
+            .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
             // .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(Boolean.TRUE).build())
             .securityGroups(Arrays.asList(sg))
             .taskDefinition(createECSTask(appName, appContainer, new HashMap<String,String>(), serviceName, taskRole, executionRole))
@@ -150,7 +149,7 @@ public class ECSPlane extends Stack {
 
         if( appContainer != null ){
             //adding application container
-            ContainerDefinition app = taskDef.addContainer( serviceName+"-app", ContainerDefinitionOptions.builder()
+            taskDef.addContainer( serviceName+"-app", ContainerDefinitionOptions.builder()
             .containerName(serviceName)
             .memoryReservationMiB(256)
             .memoryLimitMiB(512)

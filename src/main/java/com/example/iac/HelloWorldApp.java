@@ -6,24 +6,22 @@ import software.amazon.awscdk.StackProps;
 import software.constructs.Construct;
 
 public class HelloWorldApp {
-    
-
     static class SampleService extends Construct{
 
-        SampleService(Construct scope, String id, String appName){
+        SampleService(Construct scope, String id, String appName) throws Exception {
             super(scope, id);
             StackProps props    =   StackProps.builder().env(HelloWorldApp.makeEnv(null, null)).build();
             //Runtime
-            ECSPlane ecs    =   new ECSPlane(scope, appName+"-ECSPlane", appName, props);
-            
-                //TODO create the ECS using the deployment type like described in this workshop...
-                //https://cicd-pipeline-cdk-eks-bluegreen.workshop.aws/en/ecsbg/service.html
-            Pipeline pipeline   =   new Pipeline(scope, appName+"-ECSPipeline", appName, props);
-        }
+            // ECSPlane ecs    =   new ECSPlane(scope, appName+"-ecs", appName, props);
+            Pipeline pipeline   =   new Pipeline(scope, appName+"-pipeline", appName, props);
 
+            // pipeline.addDependency(ecs);
+            //create the ECS using the deployment type like described in this workshop...
+            //https://cicd-pipeline-cdk-eks-bluegreen.workshop.aws/en/ecsbg/service.html      
+        }
     }
 
-    public static void main(String argsp[]){
+    public static void main(String args[]) throws Exception{
 
         App  app = new App();
         new SampleService(app, "sample-app", "hello-world");
@@ -39,5 +37,5 @@ public class HelloWorldApp {
                 .account(account)
                 .region(region)
                 .build();
-    }    
+    }
 }
