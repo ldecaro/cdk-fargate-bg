@@ -216,6 +216,7 @@ public class Util {
 				zipEntryName.endsWith(".aws-sam") ||
 				zipEntryName.endsWith(".settings") ||
 				zipEntryName.endsWith(".vscode") ||
+				zipEntryName.endsWith("lambda") ||
 				zipEntryName.endsWith("dist") ){
 				// System.out.println("Skipping "+zipEntryName);
 			}else{

@@ -12,10 +12,35 @@ public class HelloWorldApp {
             super(scope, id);
             StackProps props    =   StackProps.builder().env(HelloWorldApp.makeEnv(null, null)).build();
             //Runtime
-            // ECSPlane ecs    =   new ECSPlane(scope, appName+"-ecs", appName, props);
-            Pipeline pipeline   =   new Pipeline(scope, appName+"-pipeline", appName, props);
+            ECSPlane ecs    =   new ECSPlane(scope, 
+                                            appName+"-ecs", 
+                                            appName, 
+                                            props);
+                                            
+            // Pipeline pipeline   =   new Pipeline(scope, 
+            //                                 appName+"-pipeline", 
+            //                                 appName, 
+            //                                 "arn:aws:elasticloadbalancing:us-east-1:742584497250:listener/app/hello-world-alb/ecb1a1368c079928/5e4920ca0e1f5c09", 
+            //                                 "arn:aws:elasticloadbalancing:us-east-1:742584497250:listener/app/hello-world-alb/ecb1a1368c079928/cc2edd175c5d7400", 
+            //                                 "hello-world-Blue", 
+            //                                 "hello-world-Green", 
+            //                                 props);
+
+            Pipeline pipeline   =   new Pipeline(scope, 
+                                                appName+"-pipeline", 
+                                                appName, 
+                                                ecs,
+                                                props);
+
+            CodeDeployConfigurator deployConfigurator  =    new CodeDeployConfigurator(scope, 
+                                                appName+"-deploy-configurator", 
+                                                appName, 
+                                                pipeline, 
+                                                props);
 
             // pipeline.addDependency(ecs);
+            deployConfigurator.addDependency(pipeline);
+
             //create the ECS using the deployment type like described in this workshop...
             //https://cicd-pipeline-cdk-eks-bluegreen.workshop.aws/en/ecsbg/service.html      
         }
