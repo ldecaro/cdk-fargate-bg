@@ -17,11 +17,7 @@ import software.amazon.awscdk.services.ecs.ContainerDefinitionOptions;
 import software.amazon.awscdk.services.ecs.ContainerImage;
 import software.amazon.awscdk.services.ecs.DeploymentController;
 import software.amazon.awscdk.services.ecs.DeploymentControllerType;
-import software.amazon.awscdk.services.ecs.EcsTarget;
 import software.amazon.awscdk.services.ecs.FargateService;
-import software.amazon.awscdk.services.ecs.IEcsLoadBalancerTarget;
-import software.amazon.awscdk.services.ecs.ListenerConfig;
-import software.amazon.awscdk.services.ecs.LoadBalancerTargetOptions;
 import software.amazon.awscdk.services.ecs.NetworkMode;
 import software.amazon.awscdk.services.ecs.PortMapping;
 import software.amazon.awscdk.services.ecs.Protocol;
@@ -34,7 +30,6 @@ import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationProtoco
 import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationTargetGroup;
 import software.amazon.awscdk.services.elasticloadbalancingv2.BaseApplicationListenerProps;
 import software.amazon.awscdk.services.elasticloadbalancingv2.ListenerAction;
-import software.amazon.awscdk.services.elasticloadbalancingv2.TargetGroupAttributes;
 import software.amazon.awscdk.services.elasticloadbalancingv2.TargetType;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.Role;
@@ -97,7 +92,6 @@ public class ECSPlane extends Stack {
 
     public DockerImageAsset createDockerAsset(){
 
-        //Create the 3 containers, one for each project: Gateway (Envoy only), Morning and Afternoon Services.  
         DockerImageAsset dockerAsset = DockerImageAsset.Builder
             .create(this, "hello-world/v1")
             .directory("./")
@@ -108,15 +102,8 @@ public class ECSPlane extends Stack {
     private FargateService createFargateService(String appName, Cluster cluster, DockerImageAsset appContainer, String serviceName, Role taskRole, Role executionRole ){
 
         ApplicationLoadBalancer lb = ApplicationLoadBalancer.Builder.create(this, appName+"-LB").loadBalancerName(appName+"-alb").vpc(cluster.getVpc()).internetFacing(true).build();
-        // ApplicationTargetGroup tgBlue   =   ApplicationTargetGroup.Builder.create(this, appName+"-blue-tg")
-        //                                                     .protocol(ApplicationProtocol.HTTP)
-        //                                                     .targetGroupName(appName+"-Blue")
-        //                                                     .targetType(TargetType.IP)
-        //                                                     .vpc(cluster.getVpc())
-        //                                                     .build();
-        // ApplicationListener listener = lb.addListener("Listener-Blue", BaseApplicationListenerProps.builder().port(80).protocol(ApplicationProtocol.HTTP).defaultTargetGroups(Arrays.asList(tgBlue)).build());   
         ApplicationListener listener = lb.addListener("Listener-Blue", BaseApplicationListenerProps.builder().port(80).protocol(ApplicationProtocol.HTTP).build());
-        // listener.addAction(appName+"-listener-blue-action", AddApplicationActionProps.builder().action(ListenerAction.forward(Arrays.asList(ApplicationTargetGroup.fromTargetGroupAttributes(this, appName+"tg-bg-blue", TargetGroupAttributes.builder().targetGroupArn(tgBlue.getTargetGroupArn()).build() )))).build());
+
 
         SecurityGroup sg    =   SecurityGroup.Builder.create(this, serviceName+"-fargatesvc-sg").vpc(cluster.getVpc()).allowAllOutbound(Boolean.TRUE).build();
         sg.addIngressRule(Peer.anyIpv4(), Port.allTcp());
@@ -132,32 +119,22 @@ public class ECSPlane extends Stack {
         ApplicationListener listenerGreen = lb.addListener("Listener-Green", BaseApplicationListenerProps.builder().port(8080).defaultTargetGroups(Arrays.asList(tgGreen)).protocol(ApplicationProtocol.HTTP).build());
         listenerGreen.addAction(appName+"-listener-green-action", AddApplicationActionProps.builder().action(ListenerAction.forward(Arrays.asList( tgGreen ))).build());
 
-        // String rand = Util.randomString(4);
         FargateService service  =   FargateService.Builder.create(this, serviceName+"-fargateSvc")
             .desiredCount(1)
             .cluster( cluster )
-            // .serviceName(serviceName+"-"+Util.randomString(4))
             .serviceName(serviceName)
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
-            // .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(Boolean.TRUE).build())
             .securityGroups(Arrays.asList(sg))
             .taskDefinition(createECSTask(appName, appContainer, new HashMap<String,String>(), serviceName, taskRole, executionRole))
             .build();
-                    
-        // service.registerLoadBalancerTargets(EcsTarget.builder()
-        //         .containerName(serviceName)
-        //         .containerPort(8080)
-        //         .newTargetGroupId("ECS")
-        //         .listener(ListenerConfig.applicationListener(listener))
-        //         .build());     
+  
 
         String tgBlueName = appName+"-Blue";    
-        listener.addTargets("test-target", AddApplicationTargetsProps.builder().targetGroupName(tgBlueName).protocol(ApplicationProtocol.HTTP).port(8080).targets(Arrays.asList(service)).build() );
+        listener.addTargets(appName+"blue-tg", AddApplicationTargetsProps.builder().targetGroupName(tgBlueName).protocol(ApplicationProtocol.HTTP).port(8080).targets(Arrays.asList(service)).build() );
 
         this.listenerBlueArn = listener.getListenerArn();
         this.listenerGreenArn = listenerGreen.getListenerArn();
     
-        // this.tgBlueName = tgBlue.getTargetGroupName();
         this.tgBlueName = tgBlueName;
         this.tgGreenName= tgGreen.getTargetGroupName();        
 
@@ -186,7 +163,6 @@ public class ECSPlane extends Stack {
             .memoryLimitMiB(512)
             .image(ContainerImage.fromDockerImageAsset(appContainer))
             .essential(Boolean.TRUE)
-            //.healthCheck(software.amazon.awscdk.services.ecs.HealthCheck.builder().command(Arrays.asList("CMD-SHELL", "curl -s http://localhost:8080/Luiz | grep name")).interval(Duration.seconds(5)).timeout(Duration.seconds(2)).retries(3).startPeriod(Duration.seconds(10)).build())
             .portMappings(Arrays.asList(
                 PortMapping.builder().containerPort(8080).hostPort(8080).protocol(Protocol.TCP).build()))          
             .environment(env)

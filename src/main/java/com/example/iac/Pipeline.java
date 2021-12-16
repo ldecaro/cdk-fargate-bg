@@ -130,7 +130,6 @@ public class Pipeline extends Stack {
                                                                             .build();
 
         gitRepo.grantPull( pipelineRole );
-        // gitRepo.grantRead( pipelineRole );
         IStage source = pipe.addStage(StageOptions.builder().stageName("Source").build());
             
         //src
@@ -160,9 +159,7 @@ public class Pipeline extends Stack {
 
         //deploy
 
-        // create CustomLambda to execute CLI command
-        // https://bezdelev.com/hacking/aws-cli-inside-lambda-layer-aws-s3-sync/   
-        
+        // create CustomLambda to execute CLI command        
         final Map<String,String> lambdaEnv	=	new HashMap<>();
         lambdaEnv.put("appName", appName);
         lambdaEnv.put("accountNumber", props.getEnv().getAccount());
@@ -205,51 +202,7 @@ public class Pipeline extends Stack {
         this.deployRole = pipelineRole;
         this.build = buildArtifact;
         this.source = sourceArtifact;
-
-        // testar e criar a custom resource que execute a chamada da lambda...passar no environmnet 3 parametros pequenos que eu quero usar.
-        // Ver a funcao do dynamodb em realtime-marketdate e analisar como que eu chamo a lambda
-
-        // //vou criar o bluegreen deployment group using cfn L1 e depois vou importar direto, porém eu acho que o CFN não tem o Blue/Green
-        // CfnApplication deployApp = CfnApplication.Builder.create(this, appName+"deploy-app").applicationName(appName).computePlatform("ECS").build();
-        // CfnDeploymentGroup deployDg =   CfnDeploymentGroup.Builder.create(this, appName+"-deploy-dg")
-        //                                                             .deploymentGroupName( appName+"-deploy-dg")
-        //                                                             .deploymentConfigName("CodeDeployDefault.ECSLinear10PercentEvery1Minutes")
-        //                                                             .applicationName(deployApp.getApplicationName())
-        //                                                             .serviceRoleArn(deployRole.getRoleArn())
-        //                                                             .deploymentStyle(DeploymentStyleProperty.builder().deploymentOption("WITH_TRAFFIC_CONTROL").deploymentType("BLUE_GREEN").build())
-        //                                                             .blueGreenDeploymentConfiguration( BlueGreenDeploymentConfigurationProperty.builder()
-        //                                                                                                 .terminateBlueInstancesOnDeploymentSuccess(BlueInstanceTerminationOptionProperty.builder().action("TERMINATE").terminationWaitTimeInMinutes(60).build())
-        //                                                                                                 .deploymentReadyOption(DeploymentReadyOptionProperty.builder().actionOnTimeout("CONTINUE_DEPLOYMENT").waitTimeInMinutes(0).build())
-        //                                                                                                 .build() )
-        //                                                             .loadBalancerInfo(LoadBalancerInfoProperty.builder().targetGroupInfoList(Arrays.asList(TargetGroupInfoProperty.builder().name(appName+"-Blue").build(), TargetGroupInfoProperty.builder().name(appName+"-Green").build())).build())
-        //                                                             .ecsServices(Arrays.asList(ECSServiceProperty.builder().clusterName(appName).serviceName(appName).build()))
-        //                                                             .build();
-        
-        // IStage deploy   =   pipe.addStage(StageOptions.builder().stageName("Deploy").build() );
-        // deploy.addAction(  CodeDeployEcsDeployAction.Builder.create()
-        //                 .actionName("Deploy")
-        //                 .role(deployRole)
-        //                 .appSpecTemplateInput(buildArtifact)
-        //                 .taskDefinitionTemplateInput(buildArtifact)
-        //                 .containerImageInputs(Arrays.asList(CodeDeployEcsContainerImageInput.builder()
-        //                                         .input(buildArtifact)
-        //                                         // the properties below are optional
-        //                                         .taskDefinitionPlaceholder("IMAGE1_NAME")
-        //                                         .build()))
-        //                 .deploymentGroup(	EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(this, appName+"-ecsdeploymentgroup", EcsDeploymentGroupAttributes.builder()
-        //                                     .deploymentGroupName( deployDg.getDeploymentGroupName() )
-        //                                     .application(EcsApplication.fromEcsApplicationName(this, appName+"-ecs-deploy-app", deployApp.getApplicationName()))
-        //                                     // pode ser aqui o meu problema depois por não ter associado o deployment config name
-        //                                     .build()))
-        //                 .variablesNamespace("deployment")
-        //                 .build()
-        // );
-
     }
-
-    // private IProject createDeployProject(String appName, Role deployRole){
-    //     return null;
-    // }
 
     private IProject createBuildProject(String appName, Role buildRole){
         return PipelineProject.Builder
@@ -281,20 +234,6 @@ public class Pipeline extends Stack {
                                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodePipelineFullAccess"),
                                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess"),
                                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployRoleForECS") 
-                            // .inlinePolicies(new HashMap<String, PolicyDocument>(){
-                            //     private static final long serialVersionUID = 6728018370248392226L;
-                            //     {
-                            //         put(appName+"AssumeRolePolicy", 		
-                            //                 PolicyDocument.Builder.create().statements(				
-                            //                 Arrays.asList(				
-                            //                         PolicyStatement.Builder.create()
-                            //                             .actions(Arrays.asList("sts:AssumeRole"))
-                            //                             .effect(Effect.ALLOW)
-                            //                             .sid("CodeDeployBlueGreenAssumeRole")
-                            //                             .resources(Arrays.asList("arn:aws:iam::"+props.getEnv().getAccount()+":role/"+deployRole.getRoleName()))
-                            //                             .build())).build());
-                            //     }
-                            // }
                             )).build();
     }
 
@@ -383,15 +322,10 @@ public class Pipeline extends Stack {
 
     private static void createSrcZip(final String appName) throws Exception {
 
-        //zip do proprio projeto dentro do diretorio raiz
-        // System.out.println("Zipping project inside directory "+(System.getProperty("user.dir")+"/dist"));
-
         File outputFile = new File("dist");
         if(outputFile.exists()){
-            // System.out.println("- Deleting old dist "+outputFile.getName());
             String[]entries = outputFile.list();
             for(String s: entries){
-                // System.out.println("- Deleting "+s);
                 File currentFile = new File(outputFile.getPath(),s);
                 currentFile.delete();
             }
