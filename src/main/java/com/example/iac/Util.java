@@ -32,14 +32,14 @@ public class Util {
         try {
         	
         	final Map<String, String> env = new HashMap<>();
-        	final String[] array = this.getClass().getResource(filename).toURI().toString().split("!");
+        	final String[] array = this.getClass().getClassLoader().getResource(filename).toURI().toString().split("!");
         	final FileSystem fs = FileSystems.newFileSystem(URI.create(array[0]), env);
         	final Path path = fs.getPath(array[1]);
         	bytes = Files.readAllBytes( path );
         	fs.close();
         }catch(IllegalArgumentException a) {
         	try {
-        		bytes = Files.readAllBytes( Paths.get(this.getClass().getResource(filename).toURI()));                	
+        		bytes = Files.readAllBytes( Paths.get(this.getClass().getClassLoader().getResource(filename).toURI()));                	
 //        		bytes =	Files.readAllBytes( Paths.get( Thread.currentThread().getContextClassLoader().getResource("com/amazon/aws/architecture/"+filename).toURI() )	);
 			} catch (URISyntaxException e) {
 				System.out.println("App::Cannot load parameter file "+filename+". URISyntaxException:"+e.getMessage());
