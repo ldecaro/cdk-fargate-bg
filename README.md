@@ -25,3 +25,7 @@ It creates an ECS Cluster, deploys the microservice using ECR, creates the CodeC
 Just want the CloudFormation?
 
 `#cdk synth`
+
+Once the application is running, you should access it using the public URL from the application load balancer. It will show a hello-world screen like the one below:
+
+![Architecture](/imgs/microservice.png)
