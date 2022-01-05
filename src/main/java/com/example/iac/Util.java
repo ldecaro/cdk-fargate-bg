@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -147,30 +148,6 @@ public class Util {
         }
     }    
 
-	public void createLoadTestFile(final String region, final String applicationName, final String envType) throws IOException{
-
-		try(BufferedWriter bf = new BufferedWriter(new FileWriter(new File("md-load-test.sh")));
-		BufferedWriter br = new BufferedWriter(new FileWriter(new File("testFile")))
-		){
-
-			bf.write("#!/bin/bash");
-			bf.write(System.lineSeparator());
-			bf.write("export AWS_DEFAULT_REGION="+region);
-			bf.write(System.lineSeparator());
-			bf.write("for i in {1..5000000}");
-			bf.write(System.lineSeparator());
-			bf.write("do");
-			bf.write(System.lineSeparator());
-			bf.write("  aws lambda invoke-async --function-name "+applicationName+"-producer-"+envType+" --invoke-args testFile ");
-			bf.write(System.lineSeparator());
-			bf.write("sleep 3");
-			bf.write(System.lineSeparator());
-			bf.write("done");
-
-			br.write("{\"batchSize\": \"300\",  \"executions\": \"100\"}");
-		}
-	}
-
 	public static String randomString(int length){
 
 		char[] buf = new char[length];
@@ -241,4 +218,44 @@ public class Util {
 			fis.close();				
 		}
 	}
+
+    public void updateConfigurationFiles(String appName, String account, String region, String ecsTaskExecutionRole){
+
+        Util util   =   new Util();
+        //buildspec.yml
+        util.updateFile("buildspec-template.yml", "buildspec.yml", new HashMap<String,String>(){{
+            put("ACCT_NUMBER", account);
+            put("APPLICATION", appName);
+            put("REGION", region);
+        }});
+        //appspec.yml
+        util.updateFile("appspec-template.yaml", "appspec.yaml", "APPLICATION", appName);
+        //taskdef
+        util.updateFile("taskdef-template.json", "taskdef.json", new HashMap<String,String>(){{
+            put("APPLICATION", appName);
+            put("TASK_EXEC_ROLE", "arn:aws:iam::"+account+":role/"+ecsTaskExecutionRole);
+        }});        
+             
+    }
+
+    public static void createSrcZip(final String appName) throws Exception {
+
+        File outputFile = new File("dist");
+        if(outputFile.exists()){
+            String[]entries = outputFile.list();
+            for(String s: entries){
+                File currentFile = new File(outputFile.getPath(),s);
+                currentFile.delete();
+            }
+            outputFile.delete();
+        }
+        outputFile.mkdirs();
+        FileOutputStream fos = new FileOutputStream(outputFile.getName()+"/"+appName+"-src.zip", false);
+        ZipOutputStream zos = new ZipOutputStream(fos);
+        Util.zipDirectory(zos, new File(System.getProperty("user.dir")), null, Boolean.TRUE);
+        zos.flush();
+        fos.flush();
+        zos.close();
+        fos.close();
+    }	
 }

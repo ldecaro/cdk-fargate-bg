@@ -23,7 +23,8 @@ phases:
       - echo Build started on `date`
       - mvn clean package
       - echo Building the Docker image...       
-      - echo ACCT_NUMBER.dkr.ecr.REGION.amazonaws.com/APPLICATION:latest   
+      - echo ACCT_NUMBER.dkr.ecr.REGION.amazonaws.com/APPLICATION:latest 
+      - cd target  
       - docker build -t ACCT_NUMBER.dkr.ecr.REGION.amazonaws.com/APPLICATION:latest .
       - docker tag ACCT_NUMBER.dkr.ecr.REGION.amazonaws.com/APPLICATION:latest ACCT_NUMBER.dkr.ecr.REGION.amazonaws.com/APPLICATION:$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
   post_build:
