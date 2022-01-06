@@ -62,12 +62,16 @@ public class PipelineStack extends Stack {
         IRepository gitRepo =   props.getGitRepo();
 
         //creating the ECR Repository
-        software.amazon.awscdk.services.ecr.Repository repo =   software.amazon.awscdk.services.ecr.Repository.Builder.create(this, appName+"-ecr").repositoryName(appName+"").build();
-        repo.applyRemovalPolicy(RemovalPolicy.DESTROY);
+        software.amazon.awscdk.services.ecr.Repository repo =   software.amazon.awscdk.services.ecr.Repository.Builder.create(this, appName+"-ecr")
+        .repositoryName(appName+"")
+        .removalPolicy(RemovalPolicy.DESTROY)
+        .build();
 
         //pipeline bucket
-        Bucket pipelineBucket = Bucket.Builder.create(this, "pipeline-staging-"+appName).bucketName("codepipeline-staging-"+appName).encryption(BucketEncryption.S3_MANAGED).build();
-        pipelineBucket.applyRemovalPolicy(RemovalPolicy.DESTROY);
+        Bucket pipelineBucket = Bucket.Builder.create(this, "pipeline-staging-" + appName)
+                .encryption(BucketEncryption.S3_MANAGED)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
 
         //pipeline
         Role deployRole         =   createCodeDeployExecutionRole(appName, props);
