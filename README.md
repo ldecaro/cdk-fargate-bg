@@ -2,7 +2,7 @@
 
 ![Architecture](/imgs/architecture.png)
 
-Requires Maven, Java8, awscli and CDK:
+Requires Docker, Maven, Java8, awscli and CDK:
 
 `# brew install maven`
 
@@ -16,6 +16,8 @@ Requires Maven, Java8, awscli and CDK:
 
 Build locally:
 `# mvn clean package`
+
+Before deploying with CDK, make sure Docker is running on your machine. CDK builds the container before pushing it to ECR.
 
 Deploy Blue/Green hello-world fargate microservice:
 `# cdk deploy --all --require-approval never`
