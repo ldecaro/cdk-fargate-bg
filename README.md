@@ -1,6 +1,14 @@
 # Blue/Green in ECS Fargate with CodeDeploy using CDK
 
+This is a reference application for running a microservice in ECS Fargate that uses CodePipeline, CodeBuild, CodeDeploy and implements a Blue/Green approach for deploying applications.
+
 ![Architecture](/imgs/architecture.png)
+
+This reference application creates, for each microservice, a set of 4 stacks: git, pipeline, ecs and microservice (asset) stacks. It uses CDK self-mutating pipelines to configure a blue/green deployment type using CodeDeploy in a totally integrated and automated approach for supporting microservices running in AWS. 
+
+The image below shows how I divided in different stacks the components of the infrastructure that supports a basic microservice:
+
+![Architecture](/imgs/stacks.png)
 
 Requires Docker, Maven, Java8, awscli and CDK:
 
@@ -20,6 +28,7 @@ Build locally:
 Before deploying with CDK, make sure Docker is running on your machine. CDK builds the container before pushing it to ECR.
 
 Deploy Blue/Green fargate microservice:
+
 `cdk deploy -c appName=my-microservice my-microservice-pipeline --require-approval never`
 
 It creates an ECS Cluster, deploys the microservice using ECR, creates the CodeCommit repository and a minimal Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: CodeDeployDefault.ECSLinear10PercentEvery1Minutes.
