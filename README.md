@@ -19,9 +19,6 @@ Build locally:
 
 Before deploying with CDK, make sure Docker is running on your machine. CDK builds the container before pushing it to ECR.
 
-Build Java8 Maven Project
-`# mvn clean package`
-
 Deploy Blue/Green fargate microservice:
 `cdk deploy -c appName=my-microservice my-microservice-pipeline --require-approval never`
 
