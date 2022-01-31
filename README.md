@@ -34,6 +34,6 @@ Just want the CloudFormation?
 
 `#cdk synth`
 
-Once the application is running, you should access it using the public URL from the application load balancer. You can verify the URL in the Output tab of the CloudFormation stack named `Deploy-my-microservice-ecs` It will show a hello-world screen like the one below:
+Once the application is running, you should access it using the public URL from the application load balancer. You can verify the URL in the Output tab of the CloudFormation stack named `Deploy-my-microservice-ecs`. Once you access the application on port 80, it will show a hello-world screen like the one below:
 
 ![Architecture](/imgs/microservice.png)
