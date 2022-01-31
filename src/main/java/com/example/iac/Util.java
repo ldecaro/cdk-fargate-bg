@@ -61,7 +61,7 @@ public class Util {
 	}
     
     // Helper method to build an environment
-    static Environment makeEnv(String account, String region) {
+    public static Environment makeEnv(String account, String region) {
         account = (account == null) ? System.getenv("CDK_DEFAULT_ACCOUNT") : account;
         region = (region == null) ? System.getenv("CDK_DEFAULT_REGION") : region;
 		//System.out.println("Using Account-Region: "+ account+"-"+region);
@@ -193,7 +193,7 @@ public class Util {
 				zipEntryName.endsWith(".aws-sam") ||
 				zipEntryName.endsWith(".settings") ||
 				zipEntryName.endsWith(".vscode") ||
-				zipEntryName.endsWith("lambda") ||
+				// zipEntryName.endsWith("lambda") ||
 				zipEntryName.endsWith("dist") ){
 				// System.out.println("Skipping "+zipEntryName);
 			}else{
