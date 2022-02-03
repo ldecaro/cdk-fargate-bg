@@ -84,6 +84,7 @@ public class ECSStack extends Stack {
             .build();
 
         Role executionRole = Role.Builder.create(this, appName+"-ecsExecutionRole")
+            .roleName(appName)
             .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com").build())
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromManagedPolicyArn(this, "ecsTaskExecutionManagedPolicy", "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"),
