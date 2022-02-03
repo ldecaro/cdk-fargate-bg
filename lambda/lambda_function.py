@@ -37,6 +37,12 @@ def lambda_handler(event, context):
         tgNameGreen = os.environ.get('tgNameGreen')
         logger.info('TG Name Blue  = {}'.format(tgNameBlue))
         logger.info('TG Name Green  = {}'.format(tgNameGreen))
+        ecsClusterName = os.environ.get('ecsClusterName')
+        ecsServiceName = os.environ.get('ecsServiceName')
+        logger.info('ECS Cluster Name  = {}'.format(ecsClusterName))
+        logger.info('ECS Service Name  = {}'.format(ecsServiceName))
+
+
         client = boto3.client('codedeploy')
         try:
             logger.info('Creating CodeDeploy Application '.format(appName))
@@ -96,8 +102,8 @@ def lambda_handler(event, context):
                 },
                 ecsServices=[
                     {
-                        'serviceName': appName,
-                        'clusterName': appName
+                        'serviceName': ecsServiceName,
+                        'clusterName': ecsClusterName
                     },
                 ]
             )

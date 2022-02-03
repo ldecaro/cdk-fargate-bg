@@ -92,8 +92,8 @@ public class ECSStack extends Stack {
 
         ApplicationLoadBalancer alb     =   createALB(appName, appName, cluster);
 
-         createFargateService(appName, cluster, alb, imageURI, appName, taskRole, executionRole);
-         createCustomResource(appName, props);            
+         FargateService service = createFargateService(appName, cluster, alb, imageURI, appName, taskRole, executionRole);
+         createCustomResource(appName, cluster.getClusterName(), service.getServiceName(), props);            
         
          CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
@@ -278,7 +278,7 @@ public class ECSStack extends Stack {
             .build();
     }   
     
-    private void createCustomResource(String appName, StackProps props){
+    private void createCustomResource(String appName, String clusterName, String serviceName, StackProps props){
 
         Role deployRole         =   createCodeDeployExecutionRole(appName, props);
         Role customLambdaRole   =   createCustomLambdaRole(appName, props, deployRole);
@@ -293,6 +293,9 @@ public class ECSStack extends Stack {
         lambdaEnv.put("tgNameBlue", tgBlueName == null ? "" : tgBlueName);
         lambdaEnv.put("tgNameGreen", tgGreenName == null ? "" : tgGreenName);
         lambdaEnv.put("pipelineName", appName == null ? "" : appName);
+        lambdaEnv.put("ecsClusterName", clusterName == null ? "" : clusterName);
+        lambdaEnv.put("ecsServiceName", serviceName == null ? "" : serviceName);
+
 
         SingletonFunction customResource = SingletonFunction.Builder.create(this, appName+"-codedeploy-blue-green-lambda")
             .uuid(appName+"-codedeploy-blue-green-lambda")
