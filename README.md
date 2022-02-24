@@ -67,7 +67,7 @@ When the pipeline is deployed it will build the project and, in the Deploy, stag
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
 
-##Testing 
+## Testing 
 
 Then the pipeline reaches the latest action of the Deploy stage the application will become acessible for the first time. You can test the application by using the public URL from the application load balancer. This URL is visible in the Output tab of the CloudFormation stack named `Deploy-my-microservice-ecs`. Once you access the application on port 80, it will show a hello-world screen. In CodeDeploy, you can see the details of the deployment listed in the Deployments menu. The image below shows how it looks like:
 
