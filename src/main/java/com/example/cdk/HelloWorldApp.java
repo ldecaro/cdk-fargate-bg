@@ -41,9 +41,11 @@ public class HelloWorldApp {
             PipelineStackProps.builder()
                 .appName(appName)
                 .env(props.getEnv())
+                .envTarget(props.getEnv())
                 .gitRepo(git.getGitRepository())
                 .build());  
 
+        //synth this stack, it generates the .assets file, we use it to retrieve the ECR repository information to configure CodeDeploy
         new ServiceAssetStack(app, appName+"-svc", appName, props);
 
         pipeline.addDependency(git);        

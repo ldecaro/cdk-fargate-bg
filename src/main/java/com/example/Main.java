@@ -2,26 +2,24 @@ package com.example;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.ext.RuntimeDelegate;
-
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-
+import org.glassfish.grizzly.http.server.HttpHandler;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.TracingConfig;
+
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.ext.RuntimeDelegate;
 
 /**
  * Microservice implemented using a lightweight HTTP server bundled in JDK.
  *
  * @author Luiz Decaro
  */
-@SuppressWarnings("restriction")
 public class Main extends ResourceConfig{
 	
 
@@ -37,21 +35,20 @@ public class Main extends ResourceConfig{
      * @return new instance of the lightweight HTTP server
      * @throws IOException
      */
-    static HttpServer startServer() throws IOException {
-        // create a new server listening at port 8080
-        final HttpServer server = HttpServer.create(new InetSocketAddress(getBaseURI().getPort()), 0);
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.stop(0);
-            }
-        }));
+    static HttpServer startServer() throws IOException {    
 
         // create a handler wrapping the JAX-RS application
         HttpHandler handler = RuntimeDelegate.getInstance().createEndpoint(new JaxRsApplication(), HttpHandler.class);
-
-        // map JAX-RS handler to the server root
-        server.createContext(getBaseURI().getPath(), handler);
+        
+        // create a new server listening at port 8080
+        final HttpServer server = GrizzlyHttpServerFactory.createHttpServer(getBaseURI(), true);
+        server.getServerConfiguration().addHttpHandler(handler);
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                server.shutdownNow();
+            }
+        }));
 
         // start the server
         server.start();

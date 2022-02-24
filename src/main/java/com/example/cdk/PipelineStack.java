@@ -27,6 +27,8 @@ import software.amazon.awscdk.pipelines.ProduceActionOptions;
 import software.amazon.awscdk.pipelines.ShellStep;
 import software.amazon.awscdk.pipelines.Step;
 import software.amazon.awscdk.services.codebuild.BuildEnvironment;
+import software.amazon.awscdk.services.codebuild.BuildEnvironmentVariable;
+import software.amazon.awscdk.services.codebuild.BuildEnvironmentVariableType;
 import software.amazon.awscdk.services.codebuild.ComputeType;
 import software.amazon.awscdk.services.codebuild.LinuxBuildImage;
 import software.amazon.awscdk.services.codecommit.IRepository;
@@ -40,7 +42,6 @@ import software.amazon.awscdk.services.codepipeline.Pipeline;
 import software.amazon.awscdk.services.codepipeline.actions.CodeCommitTrigger;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsContainerImageInput;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsDeployAction;
-import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.amazon.awscdk.services.iam.ArnPrincipal;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
@@ -76,43 +77,17 @@ public class PipelineStack extends Stack {
                 .resources(Arrays.asList(codeDeployRole.getRoleArn()))
                 .build());
 
-        String buildNumber = (String)this.getNode().tryGetContext("buildNumber");
-        String seedImageURI = null;
-        Boolean ADD_CODE_DEPLOY = Boolean.FALSE;
-
-        Pipeline codePipeline   =   null;
-
-        if( buildNumber != null && !"undefined".equals(buildNumber) && !"1".equals(buildNumber) ){
-
-            ADD_CODE_DEPLOY  =   Boolean.TRUE;
-            seedImageURI = (String)this.getNode().tryGetContext("seedImageURI");
-            codePipeline = Pipeline.Builder.create(this, "-codepipeline")
-                .pipelineName(appName)
-                .role(pipelineRole)
-                .restartExecutionOnUpdate(Boolean.FALSE)
-                .build();
-
-        }else if( buildNumber != null && "1".equals(buildNumber) ){
-
-            DockerImageAsset dockerAsset = DockerImageAsset.Builder
-                .create(this, appName+"/v1")
-                .directory("./target")
-                .build();  
-            seedImageURI = dockerAsset.getImageUri();
-            codePipeline = Pipeline.Builder.create(this, "-codepipeline")
-                .pipelineName(appName)
-                .role(pipelineRole)
-                .restartExecutionOnUpdate(Boolean.TRUE)
-                .build();
-        }
+        Pipeline codePipeline   =   Pipeline.Builder.create(this, "-codepipeline")
+            .role(pipelineRole)
+            .restartExecutionOnUpdate(Boolean.TRUE)
+            .build();
 
         CodePipeline pipeline   =   CodePipeline.Builder.create(this, appName+"-pipeline")
             .codePipeline(codePipeline)
             .selfMutation(Boolean.TRUE)
-            .publishAssetsInParallel(Boolean.TRUE)
+            .publishAssetsInParallel(Boolean.FALSE)
             .dockerEnabledForSelfMutation(Boolean.TRUE)
-            .assetPublishingCodeBuildDefaults(getCodeBuildOptions())
-            .synthCodeBuildDefaults(getCodeBuildOptions()) 
+            .synthCodeBuildDefaults(getCodeBuildOptions(appName))             
             .synth(ShellStep.Builder.create(appName+"-synth")
                 .input(source)
                 .installCommands(Arrays.asList(
@@ -121,35 +96,31 @@ public class PipelineStack extends Stack {
                 .commands(Arrays.asList(
                     "mkdir cdk.out",
                     "mvn -B clean package",
-                    "echo $CODEBUILD_BUILD_NUMBER",
-                    "cdk synth -c appName="+appName+" -c buildNumber=$CODEBUILD_BUILD_NUMBER -c seedImageURI="+seedImageURI))
-                    .build())
+                    "cd target && ls -d  */ | xargs rm -rf && ls -lah && cd ..", //clean up target folder
+                    "cdk synth -c appName=$APP_NAME"))
+                .build())
             .build();
 
-         if( ADD_CODE_DEPLOY ){   
-
-            ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
-                .input(pipeline.getCloudAssemblyFileSet())
-                .additionalInputs(new HashMap<String,IFileSetProducer>(){{
-                    put("../source", source);
-                }})
-                .primaryOutputDirectory("codedeploy")             
-                .commands(configureCodeDeploy(appName))
-                .build();
-                            
-                pipeline.addStage(new DeployECS(
-                    this, 
-                    "Deploy", 
-                    appName, 
-                    seedImageURI, 
-                    StageProps.builder()
-                        .env(props.getEnv())
-                        .build()), 
-                    AddStageOpts.builder()
-                        .pre(Arrays.asList(codeBuildPre))
-                        .post(Arrays.asList(new CodeDeployStep("codeDeploy", appName, codeBuildPre.getPrimaryOutput(), codeDeployRole)))
-                        .build());
-        }
+        //configures appspec.yaml, taskdef.json and imageDetails.json using information coming from the ServiceAssetStack (.assets)
+        ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
+            .input(pipeline.getCloudAssemblyFileSet())
+            .additionalInputs(new HashMap<String,IFileSetProducer>(){{
+                put("../source", source);
+            }})
+            .primaryOutputDirectory("codedeploy")             
+            .commands(configureCodeDeploy(appName))
+            .build();
+                        
+        pipeline.addStage(new DeployECS(this, 
+            "Deploy", 
+            appName,  
+            StageProps.builder()
+                .env(props.getEnvTarget())
+                .build()), 
+            AddStageOpts.builder()
+                .pre(Arrays.asList(codeBuildPre))
+                .post(Arrays.asList(new CodeDeployStep("codeDeploy", appName, codeBuildPre.getPrimaryOutput(), codeDeployRole)))
+                .build());
 
         CfnOutput.Builder.create(this, "PipelineRole")
             .description("Pipeline Role name")
@@ -172,13 +143,23 @@ public class PipelineStack extends Stack {
     }
     private class DeployECS extends Stage {
 
-        public DeployECS(Construct scope, String id, String appName, String seedImageURI, StageProps props) throws  Exception{
+        public DeployECS(Construct scope, String id, String appName, StageProps props) throws  Exception{
+
             super(scope, id);
-            new ServiceAssetStack(this, appName+"-svc", appName, StackProps.builder().env(props.getEnv()).build());
-            new ECSStack(this, appName+"-ecs", appName, seedImageURI, StackProps.builder().env(props.getEnv()).build());
+
+            new ServiceAssetStack(this, 
+                appName+"-service-asset", 
+                appName, 
+                StackProps.builder().env(props.getEnv()).build());
+
+            new ECSStack(this, 
+                appName+"-ecs", appName, 
+                ECSStack.DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES, 
+                StackProps.builder().env(props.getEnv()).build());
         }
     }
 
+    // CodeDeploy action executed after the ECSStack. It will control all deployments after ECSStack is created.
     private class CodeDeployStep extends Step implements ICodePipelineActionFactory{
 
         String appName;
@@ -225,9 +206,22 @@ public class PipelineStack extends Stack {
         
     }
 
-    private CodeBuildOptions getCodeBuildOptions(){
+    private CodeBuildOptions getCodeBuildOptions(String appName){
         return CodeBuildOptions.builder()
+            .rolePolicy(Arrays.asList(
+                PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(Arrays.asList("sts:AssumeRole")) 
+                .resources(Arrays.asList("arn:aws:iam::*:role/cdk-*"))
+                .build()
+            ))
             .buildEnvironment(BuildEnvironment.builder()
+                .environmentVariables(new HashMap<String,BuildEnvironmentVariable>(){{
+                    put("APP_NAME", BuildEnvironmentVariable.builder()
+                        .type(BuildEnvironmentVariableType.PLAINTEXT)
+                        .value(appName == null ? "" : appName)
+                        .build());
+                }})
                 .computeType(ComputeType.MEDIUM)
                 .buildImage(LinuxBuildImage.AMAZON_LINUX_2_3)
                 .privileged(Boolean.TRUE)//TODO test with priviledge = false
@@ -245,8 +239,8 @@ public class PipelineStack extends Stack {
             "echo $REPO_NAME",
             "echo $TAG_NAME",
             "printf '{\"ImageURI\":\"%s\"}' \""+this.getAccount()+".dkr.ecr."+this.getRegion()+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
-            "sed 's#APPLICATION#"+appName+"#g' ../source/appspec-template.yaml >> codedeploy/appspec.yaml",
-            "sed 's#APPLICATION#"+appName+"#g' ../source/taskdef-template.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+this.getAccount()+":role/"+appName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
+            "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-appspec.yaml >> codedeploy/appspec.yaml",
+            "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+this.getAccount()+":role/"+appName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
             "cat codedeploy/appspec.yaml",
             "cat codedeploy/taskdef.json",
             "cat codedeploy/imageDetail.json"        
@@ -281,12 +275,12 @@ public class PipelineStack extends Stack {
 
     public static class PipelineStackProps implements StackProps {
 
-
-        String appName = null;
-        private IRepository gitRepo;     
-        Environment environment = null;
-        Map<String,String> tags;
-        Boolean terminationProtection;
+        String appName              =   null;
+        private IRepository gitRepo =   null;     
+        Environment env             =   null;
+        Environment envTarget       =   null;
+        Map<String,String> tags     =   null;
+        Boolean terminationProtection   =   Boolean.FALSE;
 
         @Override
         public @Nullable Map<String, String> getTags() {
@@ -300,25 +294,30 @@ public class PipelineStack extends Stack {
 
         @Override
         public @Nullable String getDescription() {
-            return "Control Plane Stack of the app "+getAppName();
+            return "PipelineStack of the app "+getAppName();
         }
 
         public String getAppName(){
-            return this.appName;
+            return appName;
         }
 
         public Environment getEnv(){
-            return environment;
+            return env;
         }
 
         public IRepository getGitRepo() {
             return gitRepo;
         }
 
+        public Environment getEnvTarget() {
+            return envTarget;
+        }
 
-        public PipelineStackProps(String appName, IRepository gitRepo, Environment environment, Map<String,String> tags, Boolean terminationProtection){
+
+        public PipelineStackProps(String appName, IRepository gitRepo, Environment env, Environment envTarget, Map<String,String> tags, Boolean terminationProtection){
             this.appName = appName;
-            this.environment = environment;
+            this.env = env;
+            this.envTarget = envTarget;
             this.tags = tags;
             this.terminationProtection = terminationProtection;
             this.gitRepo = gitRepo;
@@ -332,7 +331,8 @@ public class PipelineStack extends Stack {
 
             private String appName;
             private IRepository gitRepo;
-            private Environment environment;
+            private Environment env;
+            private Environment envTarget;
             private Map<String,String> tags;
             private Boolean terminationProtection = Boolean.FALSE;
 
@@ -341,8 +341,8 @@ public class PipelineStack extends Stack {
                 return this;
             }
 
-            public Builder env(Environment environment){
-                this.environment = environment;
+            public Builder env(Environment env){
+                this.env = env;
                 return this;
             }
 
@@ -361,8 +361,13 @@ public class PipelineStack extends Stack {
                 return this;
             }
 
+            public Builder envTarget(Environment envTarget){
+                this.envTarget = envTarget;
+                return this;
+            }
+
             public PipelineStackProps build(){
-                return new PipelineStackProps(appName, gitRepo, environment, tags, terminationProtection);
+                return new PipelineStackProps(appName, gitRepo, env, envTarget, tags, terminationProtection);
             }
         }
     }    

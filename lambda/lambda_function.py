@@ -41,7 +41,8 @@ def lambda_handler(event, context):
         ecsServiceName = os.environ.get('ecsServiceName')
         logger.info('ECS Cluster Name  = {}'.format(ecsClusterName))
         logger.info('ECS Service Name  = {}'.format(ecsServiceName))
-
+        deploymentConfigName = os.environ.get('deploymentConfigName')
+        logger.info('ECS Deployment Config Name = {}'.format(deploymentConfigName))
 
         client = boto3.client('codedeploy')
         try:
@@ -60,7 +61,7 @@ def lambda_handler(event, context):
             client.create_deployment_group(
                 applicationName=appName,
                 deploymentGroupName=appName,
-                deploymentConfigName='CodeDeployDefault.ECSLinear10PercentEvery1Minutes',
+                deploymentConfigName=deploymentConfigName,
                 serviceRoleArn=roleName,
                 deploymentStyle={
                     'deploymentType': 'BLUE_GREEN',

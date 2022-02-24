@@ -14,7 +14,6 @@ import software.amazon.awscdk.services.ec2.Peer;
 import software.amazon.awscdk.services.ec2.Port;
 import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ec2.Vpc;
-import software.amazon.awscdk.services.ecr.Repository;
 import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.amazon.awscdk.services.ecs.Cluster;
 import software.amazon.awscdk.services.ecs.Compatibility;
@@ -22,7 +21,6 @@ import software.amazon.awscdk.services.ecs.ContainerDefinitionOptions;
 import software.amazon.awscdk.services.ecs.ContainerImage;
 import software.amazon.awscdk.services.ecs.DeploymentController;
 import software.amazon.awscdk.services.ecs.DeploymentControllerType;
-import software.amazon.awscdk.services.ecs.EcrImage;
 import software.amazon.awscdk.services.ecs.FargateService;
 import software.amazon.awscdk.services.ecs.NetworkMode;
 import software.amazon.awscdk.services.ecs.PortMapping;
@@ -50,15 +48,31 @@ import software.constructs.Construct;
 
 public class ECSStack extends Stack {
 
-    private String listenerBlueArn;
-    private String listenerGreenArn;
-    private String tgBlueName;
-    private String tgGreenName;
+    private String listenerBlueArn  = null;
+    private String listenerGreenArn = null;
+    private String tgBlueName       = null;
+    private String tgGreenName      = null;
+
+    private static final String    ECS_TASK_CPU = "1024";
+    private static final String    ECS_TASK_MEMORY = "2048";
+    private static final Integer   ECS_CONTAINER_MEMORY_RESERVATION = 256;
+    private static final Integer   ECS_CONTAINER_MEMORY_LIMIT = 512;
+    private static final Integer   ECS_TASK_CONTAINER_PORT = 8080;
+    private static final Integer   ECS_TASK_CONTAINER_HOST_PORT = 8080;    
+
+    static final String DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery1Minutes";
+    static final String DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery3Minutes";
+    static final String DEPLOY_CANARY_10_PERCENT_EVERY_5_MINUTES = "CodeDeployDefault.ECSCanary10percent5Minutes";
+    static final String DEPLOY_CANARY_10_PERCENT_15_MINUTES = "CodeDeployDefault.ECSCanary10percent15Minutes";
+    static final String DEPLOY_ALL_AT_ONCE = "CodeDeployDefault.ECSAllAtOnce";
 
     private SecurityGroup sg;
     
-    public ECSStack(Construct scope, String id, String appName, String imageURI, StackProps props){
+    public ECSStack(Construct scope, String id, String appName, String deploymentConfig, StackProps props){
+
         super(scope, id, props);
+        //configuration between linear and blue/green
+        String deploymentConfigName =   deploymentConfig;
 
         Vpc vpc = Vpc.Builder.create(this, appName+"-vpc") 
             .maxAzs(2)
@@ -93,8 +107,8 @@ public class ECSStack extends Stack {
 
         ApplicationLoadBalancer alb     =   createALB(appName, appName, cluster);
 
-         FargateService service = createFargateService(appName, cluster, alb, imageURI, appName, taskRole, executionRole);
-         createCustomResource(appName, cluster.getClusterName(), service.getServiceName(), props);            
+         FargateService service = createFargateService(appName, cluster, alb, appName, taskRole, executionRole);
+         createCustomResource(appName, cluster.getClusterName(), service.getServiceName(), deploymentConfigName, props);            
         
          CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
@@ -118,11 +132,10 @@ public class ECSStack extends Stack {
             
         CfnOutput.Builder.create(this, "ApplicationURL")
             .description("Application is acessible from this url")
-            .value("https://"+alb.getLoadBalancerDnsName())
+            .value("http://"+alb.getLoadBalancerDnsName())
             .build();     
                         
     }
-
 
     public DockerImageAsset createDockerAsset(){
 
@@ -176,16 +189,15 @@ public class ECSStack extends Stack {
         return alb;
     }
 
-    private FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, String imageURI, String serviceName, Role taskRole, Role executionRole ){
+    private FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, String serviceName, Role taskRole, Role executionRole ){
 
-        
         FargateService service  =   FargateService.Builder.create(this, serviceName+"-fargateSvc")
             .desiredCount(1)
             .cluster( cluster )
             .serviceName(serviceName)
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
             .securityGroups(Arrays.asList(this.sg))
-            .taskDefinition(createECSTask(appName, imageURI, new HashMap<String,String>(), serviceName, taskRole, executionRole))
+            .taskDefinition(createECSTask(appName, new HashMap<String,String>(), serviceName, taskRole, executionRole))
             .build();
   
         ApplicationListener listener = lb.getListeners().get(0);
@@ -197,7 +209,7 @@ public class ECSStack extends Stack {
         return service;
     }    
 
-    private TaskDefinition createECSTask(String appName, String imageURI, Map<String, String> env, String serviceName, Role taskRole, Role executionRole){
+    private TaskDefinition createECSTask(String appName, Map<String, String> env, String serviceName, Role taskRole, Role executionRole){
 
         TaskDefinition taskDef =    null;
         
@@ -205,26 +217,28 @@ public class ECSStack extends Stack {
             .taskRole(taskRole)
             .executionRole(executionRole)
             .networkMode(NetworkMode.AWS_VPC)
-            .cpu("1024")
-            .memoryMiB("2048")
+            .cpu(ECSStack.ECS_TASK_CPU)
+            .memoryMiB(ECSStack.ECS_TASK_MEMORY)
             .family(serviceName)
             .compatibility(Compatibility.FARGATE)
             .build();    
 
-        System.out.println("Found existing imageURI on ECR: "+imageURI);
-        if(imageURI == null || imageURI.indexOf("dummy-value")!= -1 || imageURI.toLowerCase().indexOf("token")!=-1){
-            imageURI = "123456789012.dkr.ecr.us-east-1.amazonaws.com/c8adc83b19:1112b5f";
-        }
-        EcrImage image = ContainerImage.fromEcrRepository(Repository.fromRepositoryName(this, "CDK-ECR-Repository", imageURI.substring(imageURI.indexOf("/")+1, imageURI.indexOf(":") )), imageURI.substring(imageURI.indexOf(":")+1));
-        System.out.println("Using old image from repository. Getting value from SSM: "+image.getImageName());
         taskDef.addContainer( serviceName+"-app", ContainerDefinitionOptions.builder()
             .containerName(serviceName)
-            .memoryReservationMiB(256)
-            .memoryLimitMiB(512)
-            .image(image)
+            .memoryReservationMiB(ECS_CONTAINER_MEMORY_RESERVATION)
+            .memoryLimitMiB(ECS_CONTAINER_MEMORY_LIMIT)
+            .image(ContainerImage.fromDockerImageAsset(        
+                DockerImageAsset.Builder
+                    .create(this, appName+"-container")
+                    .directory("./blue-green/blue-app")
+                    .build()))
             .essential(Boolean.TRUE)
             .portMappings(Arrays.asList(
-                PortMapping.builder().containerPort(8080).hostPort(8080).protocol(Protocol.TCP).build()))          
+                PortMapping.builder()
+                    .containerPort(ECSStack.ECS_TASK_CONTAINER_PORT)
+                    .hostPort(ECSStack.ECS_TASK_CONTAINER_HOST_PORT)
+                    .protocol(Protocol.TCP)
+                .build()))          
             .environment(env)
             .build());            
 
@@ -279,12 +293,12 @@ public class ECSStack extends Stack {
             .build();
     }   
     
-    private void createCustomResource(String appName, String clusterName, String serviceName, StackProps props){
+    private void createCustomResource(String appName, String clusterName, String serviceName, String deploymentConfigName, StackProps props){
 
         Role deployRole         =   createCodeDeployExecutionRole(appName, props);
         Role customLambdaRole   =   createCustomLambdaRole(appName, props, deployRole);
 
-        // create CustomLambda to execute CLI command        
+        // create CustomLambda to execute CLI command and create the Deployment Group     
         final Map<String,String> lambdaEnv	=	new HashMap<>();
         lambdaEnv.put("appName", appName);
         lambdaEnv.put("accountNumber", props.getEnv().getAccount());
@@ -296,6 +310,7 @@ public class ECSStack extends Stack {
         lambdaEnv.put("pipelineName", appName == null ? "" : appName);
         lambdaEnv.put("ecsClusterName", clusterName == null ? "" : clusterName);
         lambdaEnv.put("ecsServiceName", serviceName == null ? "" : serviceName);
+        lambdaEnv.put("deploymentConfigName", deploymentConfigName == null ? ECSStack.DEPLOY_ALL_AT_ONCE : deploymentConfigName );
 
 
         SingletonFunction customResource = SingletonFunction.Builder.create(this, appName+"-codedeploy-blue-green-lambda")
