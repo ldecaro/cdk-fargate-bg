@@ -74,5 +74,6 @@ Then the pipeline reaches the latest action of the Deploy stage the application 
 <img src="/imgs/CodeDeployDeployment.png" width=80%>
 
 At this point, refreshing the page repeatedly will show the different versions of the same application. The Green application will appear. It looks like the image below:
+
 <img src="/imgs/blue-app.png" width=50% height=50%><img src="/imgs/green-app.png" width=50% height=50%>
 
