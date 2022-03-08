@@ -1,9 +1,11 @@
 package com.example.cdk;
 
+import com.example.cdk.CrossAccountApplicationStack.ServiceAssetStackProps;
+import com.example.cdk.PipelineStack.DeploymentConfig;
 import com.example.cdk.PipelineStack.PipelineStackProps;
-import com.example.iac.Util;
 
 import software.amazon.awscdk.App;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
 public class HelloWorldApp {
@@ -12,17 +14,18 @@ public class HelloWorldApp {
 
         App  app = new App();
 
+        Environment envPipeline =   Util.makeEnv();
+        Environment envTarget   =   Util.makeEnv("279211433385", "us-east-1");
+
         String appName = (String)app.getNode().tryGetContext("appName");
         if( appName == null || "".equals(appName.trim() )){
             appName = "ecs-microservice";
         }
 
-        System.out.println("Microservice Name: "+appName);
-        StackProps props    =   StackProps.builder().env(Util.makeEnv(null, null)).build();
-
-        final String buildNumber = (String)app.getNode().tryGetContext("buildNumber");
-        Boolean UPLOAD_PROJECT  =   buildNumber == null ? Boolean.TRUE : Boolean.FALSE;
-        if( UPLOAD_PROJECT ){
+        //if necessary, pack directory to upload
+        final String buildNumber = System.getenv("CODEBUILD_BUILD_NUMBER");
+        Boolean IS_CREATING  =   buildNumber == null ? Boolean.TRUE : Boolean.FALSE;
+        if( IS_CREATING ){
             Util.createSrcZip(appName);
         }
               
@@ -30,26 +33,55 @@ public class HelloWorldApp {
         GitStack git    =   new GitStack(app, 
             appName+"-git", 
             appName,
-            UPLOAD_PROJECT,
+            IS_CREATING,
             StackProps.builder()
-                .env(props.getEnv())
+                .env(envPipeline)
                 .terminationProtection(Boolean.FALSE)
                 .build());
+
+        //synth the application stacks, it generates the .assets file, we use it to retrieve the ECR repository information to configure CodeDeploy
+        ApplicationStack alphaService = new ApplicationStack(
+            app, 
+            appName+"-svc-1", 
+            appName,
+            StackProps.builder()
+                .env(envPipeline)
+                .stackName(appName+"-app-alpha")
+                .build());       
+
+        CrossAccountApplicationStack betaService   =   new CrossAccountApplicationStack(
+            app,
+            appName+"-svc-2",
+            appName,
+            ServiceAssetStackProps.builder()
+                .env(envTarget)
+                .envPipeline(envPipeline)
+                .stackName(appName+"-app-beta")
+                .build()
+            );
 
         PipelineStack pipeline   =   new PipelineStack(app, 
             appName+"-pipeline", 
             PipelineStackProps.builder()
                 .appName(appName)
-                .env(props.getEnv())
-                .envTarget(props.getEnv())
+                .env(envPipeline)
+                .envTarget(envTarget)
                 .gitRepo(git.getGitRepository())
+                .deploymentConfigs(new DeploymentConfig[]{ 
+                    new DeploymentConfig(
+                        DeploymentConfig.DEPLOY_ALL_AT_ONCE, 
+                        envPipeline), 
+                    new DeploymentConfig(
+                        DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES, 
+                        envTarget, 
+                        betaService.getCodeDeployActionRole(), 
+                        betaService.getDeploymentGroup()), 
+                })
                 .build());  
 
-        //synth this stack, it generates the .assets file, we use it to retrieve the ECR repository information to configure CodeDeploy
-        new ServiceAssetStack(app, appName+"-svc", appName, props);
-
-        pipeline.addDependency(git);        
-
+        pipeline.addDependency(git);
+        pipeline.addDependency(alphaService);        
+        pipeline.addDependency(betaService);
         app.synth();
     }
 }

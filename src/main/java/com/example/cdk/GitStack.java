@@ -22,7 +22,7 @@ public class GitStack extends Stack {
     
     private IRepository gitRepo =   null;
     
-    public GitStack(Construct scope, String id, String appName, final Boolean UPLOAD, StackProps props){
+    public GitStack(Construct scope, String id, String appName, final Boolean IS_CREATING, StackProps props){
         
         super(scope, id, props);
 
@@ -32,7 +32,7 @@ public class GitStack extends Stack {
                                         .build();         
 
         BucketDeployment s3Deployment   =   null;
-        if( UPLOAD ){
+        if( IS_CREATING ){
             //we are deploying the pipeline
             s3Deployment    =   BucketDeployment.Builder.create(this, "GitSeedBucketDeployment")
                 .sources(Arrays.asList(new ISource[]{ Source.asset("./dist") }))
@@ -56,7 +56,7 @@ public class GitStack extends Stack {
                     .build())
                 .build());
 
-        if( UPLOAD ){
+        if( IS_CREATING ){
             gitRepo.getNode().addDependency(s3Deployment);
         }
 

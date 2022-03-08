@@ -1,9 +1,12 @@
 package com.example.cdk;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.example.cdk.ECSStack.ECSStackProps;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -14,7 +17,6 @@ import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.StageProps;
-import software.amazon.awscdk.pipelines.AddStageOpts;
 import software.amazon.awscdk.pipelines.CodeBuildOptions;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
@@ -25,6 +27,7 @@ import software.amazon.awscdk.pipelines.ICodePipelineActionFactory;
 import software.amazon.awscdk.pipelines.IFileSetProducer;
 import software.amazon.awscdk.pipelines.ProduceActionOptions;
 import software.amazon.awscdk.pipelines.ShellStep;
+import software.amazon.awscdk.pipelines.StageDeployment;
 import software.amazon.awscdk.pipelines.Step;
 import software.amazon.awscdk.services.codebuild.BuildEnvironment;
 import software.amazon.awscdk.services.codebuild.BuildEnvironmentVariable;
@@ -57,7 +60,7 @@ public class PipelineStack extends Stack {
         super(scope, id, props);
 
         String appName  =   props.getAppName();
-        IRepository gitRepo =   props.getGitRepo();
+        IRepository gitRepo =   props.getGitRepo();  
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
             gitRepo,
@@ -65,20 +68,13 @@ public class PipelineStack extends Stack {
             CodeCommitSourceOptions
                 .builder()
                 .trigger(CodeCommitTrigger.POLL)
-                .build());
+                .build());           
 
-        Role pipelineRole   =   createPipelineRole(appName);
-        Role codeDeployRole =   createCodeDeployRole(appName, pipelineRole);
-        
-        pipelineRole.addToPolicy(
-            PolicyStatement.Builder.create()
-                .effect(Effect.ALLOW)
-                .actions(Arrays.asList("sts:AssumeRole"))
-                .resources(Arrays.asList(codeDeployRole.getRoleArn()))
-                .build());
+        Role pipelineRole   =   createPipelineRole(appName);  
 
         Pipeline codePipeline   =   Pipeline.Builder.create(this, "-codepipeline")
             .role(pipelineRole)
+            .crossAccountKeys(Boolean.TRUE)//tirar no pipeline e verificar se a bucket policy do s3 e da kms que encripta o s3 continuam lá. checar o change set no CloudFormation.
             .restartExecutionOnUpdate(Boolean.TRUE)
             .build();
 
@@ -87,7 +83,8 @@ public class PipelineStack extends Stack {
             .selfMutation(Boolean.TRUE)
             .publishAssetsInParallel(Boolean.FALSE)
             .dockerEnabledForSelfMutation(Boolean.TRUE)
-            .synthCodeBuildDefaults(getCodeBuildOptions(appName))             
+            .synthCodeBuildDefaults(getCodeBuildOptions(appName, props.getDeploymentConfigs()))
+            .selfMutationCodeBuildDefaults(getCodeBuildOptions(appName, props.getDeploymentConfigs()))
             .synth(ShellStep.Builder.create(appName+"-synth")
                 .input(source)
                 .installCommands(Arrays.asList(
@@ -101,36 +98,46 @@ public class PipelineStack extends Stack {
                 .build())
             .build();
 
-        //configures appspec.yaml, taskdef.json and imageDetails.json using information coming from the ServiceAssetStack (.assets)
-        ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
-            .input(pipeline.getCloudAssemblyFileSet())
-            .additionalInputs(new HashMap<String,IFileSetProducer>(){{
-                put("../source", source);
-            }})
-            .primaryOutputDirectory("codedeploy")             
-            .commands(configureCodeDeploy(appName))
-            .build();
-                        
-        pipeline.addStage(new DeployECS(this, 
-            "Deploy", 
-            appName,  
-            StageProps.builder()
-                .env(props.getEnvTarget())
-                .build()), 
-            AddStageOpts.builder()
-                .pre(Arrays.asList(codeBuildPre))
-                .post(Arrays.asList(new CodeDeployStep("codeDeploy", appName, codeBuildPre.getPrimaryOutput(), codeDeployRole)))
-                .build());
+        //processing list of deploymentConfigs, one per stage: alpha, beta, gamma
+        processDeploymentConfig(props, pipelineRole);
+
+        String [] stageDescription = new String[]{"Alpha", "Beta", "Gamma", "Delta"};
+        for(int stageNumber=0; stageNumber<props.getDeploymentConfigs().length; stageNumber++){
+            
+            DeploymentConfig deployConfig =   props.getDeploymentConfigs()[stageNumber];
+            
+            ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
+                .input(pipeline.getCloudAssemblyFileSet())
+                .additionalInputs(new HashMap<String,IFileSetProducer>(){{
+                    put("../source", source);
+                }})
+                .primaryOutputDirectory("codedeploy")             
+                .commands(configureCodeDeploy(appName, deployConfig.getEnv(), (stageNumber+1) ))
+                .build();    
+
+            DeployECS deploy = new DeployECS(this, 
+                "Deploy-"+stageDescription[stageNumber], 
+                appName,
+                deployConfig.getDeployConfig(),
+                stageDescription[stageNumber].toLowerCase(),
+                StageProps.builder()
+                    .env(deployConfig.getEnv())
+                    .build());
+
+            StageDeployment stage = pipeline.addStage(deploy);
+            stage.addPre(codeBuildPre);
+            stage.addPost(new CodeDeployStep(
+                "codeDeploy"+stageDescription[stageNumber], 
+                stageNumber+1,
+                codeBuildPre.getPrimaryOutput(), 
+                deployConfig.getCodeDeployRole(),
+                deployConfig.getEcsDeploymentGroup()));
+        }
 
         CfnOutput.Builder.create(this, "PipelineRole")
             .description("Pipeline Role name")
             .value(pipelineRole.getRoleName())
-            .build();            
-
-        CfnOutput.Builder.create(this, "CodeDeployRole")
-            .description("CodeDeploy Role name")
-            .value(codeDeployRole.getRoleName())
-            .build();          
+            .build();                    
 
         try{
             CfnOutput.Builder.create(this, "PipelineName")
@@ -141,64 +148,56 @@ public class PipelineStack extends Stack {
             System.out.println("Not showing output PipelineName because it has not yet been created");
         }
     }
-    private class DeployECS extends Stage {
+    protected class DeployECS extends Stage {
 
-        public DeployECS(Construct scope, String id, String appName, StageProps props) throws  Exception{
+        public DeployECS(Construct scope, String id, String appName, String deployConfig, String stageDescription, StageProps props) throws  Exception{
 
             super(scope, id);
 
-            new ServiceAssetStack(this, 
-                appName+"-service-asset", 
-                appName, 
-                StackProps.builder().env(props.getEnv()).build());
-
             new ECSStack(this, 
-                appName+"-ecs", appName, 
-                ECSStack.DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES, 
-                StackProps.builder().env(props.getEnv()).build());
+                appName+"-ecs-"+stageDescription, 
+                ECSStackProps.builder()
+                    .appName(appName)
+                    .deploymentConfig(deployConfig)
+                    .stackName(appName+"-ecs-"+stageDescription)
+                    .env(props.getEnv())
+                    .build());
         }
     }
 
     // CodeDeploy action executed after the ECSStack. It will control all deployments after ECSStack is created.
     private class CodeDeployStep extends Step implements ICodePipelineActionFactory{
 
-        String appName;
         FileSet fileSet;
         Role codeDeployRole;
+        IEcsDeploymentGroup dg;
+        Integer stageNumber = 0;
 
-        public CodeDeployStep(String id, String appName, FileSet fileSet, Role codeDeployRole){
+        public CodeDeployStep(String id, Integer stageNumber, FileSet fileSet, Role codeDeployRole, IEcsDeploymentGroup dg){
             super(id);
-            this.appName    =   appName;
             this.fileSet    =   fileSet;
             this.codeDeployRole =   codeDeployRole;
+            this.dg    =   dg;
+            this.stageNumber = stageNumber;
         }
 
         @Override
         public @NotNull CodePipelineActionFactoryResult produceAction(@NotNull IStage stage, @NotNull ProduceActionOptions options) {
 
-            Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);
-            System.out.println("CodeBuildStep::adding action to the stage: "+stage.getStageName()+", Run Order = "+options.getRunOrder());
-
-            IEcsDeploymentGroup dg  =   EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
-                PipelineStack.this, 
-                appName+"-ecsdeploymentgroup", 
-                EcsDeploymentGroupAttributes.builder()
-                    .deploymentGroupName( appName )
-                    .application(EcsApplication.fromEcsApplicationName(PipelineStack.this, appName+"-ecs-deploy-app", appName))                                            
-                    .build());
+            Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);           
 
             stage.addAction(CodeDeployEcsDeployAction.Builder.create()
                 .actionName("Deploy")
-                .role(codeDeployRole)
+                .role(codeDeployRole) 
                 .appSpecTemplateInput(artifact)
                 .taskDefinitionTemplateInput(artifact)
                 .runOrder(options.getRunOrder())
                 .containerImageInputs(Arrays.asList(CodeDeployEcsContainerImageInput.builder()
-                                        .input(artifact)
-                                        .taskDefinitionPlaceholder("IMAGE1_NAME")
-                                        .build()))
-                .deploymentGroup(dg)
-                .variablesNamespace("deployment")
+                    .input(artifact)
+                    .taskDefinitionPlaceholder("IMAGE1_NAME")
+                    .build()))
+                .deploymentGroup( dg )
+                .variablesNamespace("deployment"+stageNumber)
                 .build());
 
             return CodePipelineActionFactoryResult.builder().runOrdersConsumed(1).build();
@@ -206,15 +205,28 @@ public class PipelineStack extends Stack {
         
     }
 
-    private CodeBuildOptions getCodeBuildOptions(String appName){
-        return CodeBuildOptions.builder()
-            .rolePolicy(Arrays.asList(
-                PolicyStatement.Builder.create()
+    private CodeBuildOptions getCodeBuildOptions(String appName, DeploymentConfig[] deploymentConfigs ){
+
+        List<PolicyStatement> policies = new ArrayList<>();
+        policies.add(PolicyStatement.Builder.create()
+            .effect(Effect.ALLOW)
+            .actions(Arrays.asList("sts:AssumeRole")) 
+            .resources(Arrays.asList("arn:aws:iam::*:role/cdk-*"))
+            .build());
+
+        for(DeploymentConfig deployConfig: deploymentConfigs){
+
+            if( deployConfig.getCodeDeployRole()!=null){
+                policies.add(PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
-                .actions(Arrays.asList("sts:AssumeRole")) 
-                .resources(Arrays.asList("arn:aws:iam::*:role/cdk-*"))
-                .build()
-            ))
+                .actions(Arrays.asList("sts:AssumeRole"))
+                .resources(Arrays.asList( deployConfig.getCodeDeployRole().getRoleArn()) )
+                .build());
+            }
+        }
+
+        return CodeBuildOptions.builder()
+            .rolePolicy(policies)
             .buildEnvironment(BuildEnvironment.builder()
                 .environmentVariables(new HashMap<String,BuildEnvironmentVariable>(){{
                     put("APP_NAME", BuildEnvironmentVariable.builder()
@@ -227,20 +239,29 @@ public class PipelineStack extends Stack {
                 .privileged(Boolean.TRUE)//TODO test with priviledge = false
                 .build())
             .build();
+
     }
 
-    private List<String> configureCodeDeploy(String appName){
+    /**
+     * Configures appspec.yaml, taskdef.json and imageDetails.json using information coming from the ApplicationStack/DockerImageAsset (.assets)
+     * @param appName
+     * @param targetEnv
+     * @param stageNumber
+     * @return
+     */
+    private List<String> configureCodeDeploy(String appName, Environment targetEnv, Integer stageNumber){
         return Arrays.asList(
             "mkdir codedeploy",
             "ls -l",
-            "find . -type f -exec cat {} \\;",
-            "export REPO_NAME=$(cat "+appName+"-svc.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName')",
-            "export TAG_NAME=$(cat "+appName+"-svc.assets.json | jq -r '.dockerImages | keys[0]')",
+            // "find . -type f -exec cat {} \\;",
+            "cat *.assets.json",
+            "export REPO_NAME=$(cat "+appName+"-svc-"+stageNumber+".assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName')",
+            "export TAG_NAME=$(cat "+appName+"-svc-"+stageNumber+".assets.json | jq -r '.dockerImages | keys[0]')",
             "echo $REPO_NAME",
             "echo $TAG_NAME",
-            "printf '{\"ImageURI\":\"%s\"}' \""+this.getAccount()+".dkr.ecr."+this.getRegion()+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
+            "printf '{\"ImageURI\":\"%s\"}' \""+targetEnv.getAccount()+".dkr.ecr."+targetEnv.getRegion()+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
             "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-appspec.yaml >> codedeploy/appspec.yaml",
-            "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+this.getAccount()+":role/"+appName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
+            "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+targetEnv.getAccount()+":role/"+appName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
             "cat codedeploy/appspec.yaml",
             "cat codedeploy/taskdef.json",
             "cat codedeploy/imageDetail.json"        
@@ -249,31 +270,64 @@ public class PipelineStack extends Stack {
 
     private Role createPipelineRole(final String appName){
 
-        return Role.Builder.create(this, appName+"pipelineRole")
+        return Role.Builder.create(this, appName+"-pipelineRole")
             .assumedBy(ServicePrincipal.Builder.create("codepipeline.amazonaws.com").build())
             .roleName(appName+"-pipelineRole")
             .build();
     }
 
-    private Role createCodeDeployRole(final String appName, Role codePipelineRole){
+    private void processDeploymentConfig(final PipelineStackProps props, final Role codePipelineRole){
         
-        Role pipelineRole   =  Role.Builder.create(this, appName+"-codedeploy-role")
-            .assumedBy(new ArnPrincipal(codePipelineRole.getRoleArn()))
-            .description("CodeDeploy Execution Role for "+appName)
-            .path("/")
-            .managedPolicies(Arrays.asList(
-                ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ContainerRegistryFullAccess"),
-                ManagedPolicy.fromAwsManagedPolicyName("AWSCodeCommitPowerUser"),
-                ManagedPolicy.fromAwsManagedPolicyName("AmazonECS_FullAccess"),
-                ManagedPolicy.fromAwsManagedPolicyName("AWSCodePipelineFullAccess"),
-                ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess"),
-                ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployRoleForECS") 
-            )).build();
+        IEcsDeploymentGroup dg    = null;
+        Role codeDeployRole =   null;
 
-        return pipelineRole;
-    }
+        //if this is a cross-account scenario...
+        for(DeploymentConfig deployConfig: props.getDeploymentConfigs()){
 
-    public static class PipelineStackProps implements StackProps {
+            if( deployConfig.getCodeDeployRole()!=null ){
+
+                codePipelineRole.addToPolicy(
+                PolicyStatement.Builder.create()
+                    .effect(Effect.ALLOW)
+                    .actions(Arrays.asList("sts:AssumeRole"))
+                    .resources(Arrays.asList( deployConfig.getCodeDeployRole().getRoleArn()))
+                    .build());
+            }else{
+
+                if(codeDeployRole == null){
+
+                    String appName  =   props.getAppName();
+                    codeDeployRole   =  Role.Builder.create(this, appName+"-codedeploy-role")
+                    .assumedBy(new ArnPrincipal(codePipelineRole.getRoleArn()))
+                    .description("CodeDeploy Execution Role for "+appName)
+                    .path("/")
+                    .managedPolicies(Arrays.asList(
+                        ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ContainerRegistryFullAccess"),
+                        ManagedPolicy.fromAwsManagedPolicyName("AWSCodeCommitPowerUser"),
+                        ManagedPolicy.fromAwsManagedPolicyName("AmazonECS_FullAccess"),
+                        ManagedPolicy.fromAwsManagedPolicyName("AWSCodePipelineFullAccess"),
+                        ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess"),
+                        ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployRoleForECS") 
+                    )).build();
+
+                    dg  =   EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
+                        this, 
+                        appName+"-ecsdeploymentgroup", 
+                        EcsDeploymentGroupAttributes.builder()
+                            .deploymentGroupName( appName )
+                            .application(EcsApplication.fromEcsApplicationName(
+                                this, 
+                                appName+"-ecs-deploy-app", 
+                                appName))                                            
+                            .build());                    
+                }
+                deployConfig.setCodeDeployRole(codeDeployRole);
+                deployConfig.setDeploymentGroup(dg);
+            }
+        }
+    }    
+
+    protected static class PipelineStackProps implements StackProps {
 
         String appName              =   null;
         private IRepository gitRepo =   null;     
@@ -281,6 +335,7 @@ public class PipelineStack extends Stack {
         Environment envTarget       =   null;
         Map<String,String> tags     =   null;
         Boolean terminationProtection   =   Boolean.FALSE;
+        DeploymentConfig[] deploymentConfigs  =   null;      
 
         @Override
         public @Nullable Map<String, String> getTags() {
@@ -313,14 +368,18 @@ public class PipelineStack extends Stack {
             return envTarget;
         }
 
+        public DeploymentConfig[] getDeploymentConfigs(){
+            return deploymentConfigs;
+        }
 
-        public PipelineStackProps(String appName, IRepository gitRepo, Environment env, Environment envTarget, Map<String,String> tags, Boolean terminationProtection){
+        public PipelineStackProps(String appName, IRepository gitRepo, Environment env, Environment envTarget, Map<String,String> tags, Boolean terminationProtection, DeploymentConfig[] deploymentConfigs){//} Role codeDeployRoleAlpha, IEcsDeploymentGroup dgAlpha, String deployConfigAlpha, Role codeDeployRoleBeta, IEcsDeploymentGroup dgBeta, String deployConfigBeta, DeploymentConfig[] deploymentConfigs){
             this.appName = appName;
             this.env = env;
             this.envTarget = envTarget;
             this.tags = tags;
             this.terminationProtection = terminationProtection;
             this.gitRepo = gitRepo;
+            this.deploymentConfigs = deploymentConfigs;          
         }
 
         public static Builder builder(){
@@ -329,12 +388,13 @@ public class PipelineStack extends Stack {
         static class Builder{
 
 
-            private String appName;
-            private IRepository gitRepo;
-            private Environment env;
-            private Environment envTarget;
-            private Map<String,String> tags;
+            private String appName  =   null;
+            private IRepository gitRepo =   null;
+            private Environment env =   null;
+            private Environment envTarget   =   null;
+            private Map<String,String> tags =   null;
             private Boolean terminationProtection = Boolean.FALSE;
+            private DeploymentConfig[] deploymentConfigs   =   null;
 
             public Builder appName(String appName){
                 this.appName = appName;
@@ -366,9 +426,64 @@ public class PipelineStack extends Stack {
                 return this;
             }
 
+            public Builder deploymentConfigs(DeploymentConfig[] deploymentConfigs){
+                this.deploymentConfigs = deploymentConfigs;
+                return this;
+            }          
+
             public PipelineStackProps build(){
-                return new PipelineStackProps(appName, gitRepo, env, envTarget, tags, terminationProtection);
+                return new PipelineStackProps(appName, gitRepo, env, envTarget, tags, terminationProtection, deploymentConfigs);// codeDeployRoleAlpha, dgAlpha, deployConfigAlpha, codeDeployRoleBeta, dgBeta, deployConfigBeta, deploymentConfigs);
             }
         }
-    }    
+    }
+    
+    public static class DeploymentConfig{
+
+        static final String DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery1Minutes";
+        static final String DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery3Minutes";
+        static final String DEPLOY_CANARY_10_PERCENT_EVERY_5_MINUTES = "CodeDeployDefault.ECSCanary10percent5Minutes";
+        static final String DEPLOY_CANARY_10_PERCENT_15_MINUTES = "CodeDeployDefault.ECSCanary10percent15Minutes";
+        static final String DEPLOY_ALL_AT_ONCE = "CodeDeployDefault.ECSAllAtOnce";            
+
+        private String deployConfig    =    null;
+        private IEcsDeploymentGroup dg  =   null;
+        private Role codeDeployRole =   null;
+        private Environment env =   null;
+
+        public String getDeployConfig(){
+            return deployConfig;
+        }
+
+        public IEcsDeploymentGroup getEcsDeploymentGroup(){
+            return dg;
+        }
+
+        public Role getCodeDeployRole(){
+            return codeDeployRole;
+        }
+
+        public void setCodeDeployRole(Role codeDeployRole){
+            this.codeDeployRole = codeDeployRole;
+        }
+
+        public Environment getEnv(){
+            return env;
+        }
+
+        public void setDeploymentGroup(IEcsDeploymentGroup dg){
+            this.dg =   dg;
+        }
+
+        public DeploymentConfig(final String deployConfig, Environment env){
+            this.deployConfig   =   deployConfig;
+            this.env = env;
+        }
+
+        public DeploymentConfig(String deployConfig, Environment env, Role codeDeployRole, IEcsDeploymentGroup dg){
+            this.codeDeployRole =   codeDeployRole;
+            this.dg    =    dg;
+            this.deployConfig   =   deployConfig;
+            this.env    =   env;
+        }
+    }
 }

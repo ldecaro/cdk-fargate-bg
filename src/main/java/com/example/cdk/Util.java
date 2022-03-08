@@ -1,12 +1,8 @@
-package com.example.iac;
+package com.example.cdk;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,7 +36,6 @@ public class Util {
         }catch(IllegalArgumentException a) {
         	try {
         		bytes = Files.readAllBytes( Paths.get(this.getClass().getClassLoader().getResource(filename).toURI()));                	
-//        		bytes =	Files.readAllBytes( Paths.get( Thread.currentThread().getContextClassLoader().getResource("com/amazon/aws/architecture/"+filename).toURI() )	);
 			} catch (URISyntaxException e) {
 				System.out.println("App::Cannot load parameter file "+filename+". URISyntaxException:"+e.getMessage());
 				e.printStackTrace();
@@ -60,6 +55,10 @@ public class Util {
         return fileContent;
 	}
     
+	public static Environment makeEnv(){
+		return Util.makeEnv(null,null);
+	}
+
     // Helper method to build an environment
     public static Environment makeEnv(String account, String region) {
         account = (account == null) ? System.getenv("CDK_DEFAULT_ACCOUNT") : account;
@@ -70,109 +69,8 @@ public class Util {
                 .region(region)
                 .build();
     }
-    
-    
-    public void updateFile(String filenameSrc, String filenameDest, String what, String newText) {
-    	
-    	FileWriter fw		=	null;
-    	BufferedWriter bw	=	null;
-    	BufferedReader br	=	null;
-    	FileReader	fr		=	null;
-        File file = new File( filenameSrc );
-        File file2= new File( filenameDest );
-        try{
-            String verify, putData;
-            file2.createNewFile();
-            fw = new FileWriter(file2);
-            bw = new BufferedWriter(fw);
-            
-            fr = new FileReader(file);
-            br = new BufferedReader(fr);
-            while( (verify=br.readLine()) != null ){
-                       
-                if(verify != null){ 
-                    putData = verify.replace(what, newText);
-                    bw.write(putData);
-                    bw.write(System.lineSeparator());
-                }                
-            }
-            bw.flush();
-        }catch(IOException e){
-        	e.printStackTrace();
-        }finally {
-        	try {
-        		if(bw != null) bw.close();
-        		if(br != null) br.close();
-        	}catch(Exception e) {
-        		System.out.println(e.getMessage());
-        	}
-        }
-    }
+     
 
-    public void updateFile(String filenameSrc, String filenameDest, Map<String,String> tokenReplacement) {
-    	
-    	FileWriter fw		=	null;
-    	BufferedWriter bw	=	null;
-    	BufferedReader br	=	null;
-    	FileReader	fr		=	null;
-        File file = new File( filenameSrc );
-        File file2= new File( filenameDest );
-        try{
-            String verify;
-            file2.createNewFile();
-            fw = new FileWriter(file2);
-            bw = new BufferedWriter(fw);
-            
-            fr = new FileReader(file);
-            br = new BufferedReader(fr);
-            while( (verify=br.readLine()) != null ){
-                       
-                if(verify != null){ 
-                    for(Map.Entry<String,String> entry:tokenReplacement.entrySet()){
-                        verify = verify.replace(entry.getKey(), entry.getValue());
-                    }
-                    bw.write(verify);
-                    bw.write(System.lineSeparator());
-                }                
-            }
-            bw.flush();
-        }catch(IOException e){
-        	e.printStackTrace();
-        }finally {
-        	try {
-        		if(bw != null) bw.close();
-        		if(br != null) br.close();
-        	}catch(Exception e) {
-        		System.out.println(e.getMessage());
-        	}
-        }
-    }    
-
-	public static String randomString(int length){
-
-		char[] buf = new char[length];
-		String alphanum = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ".toLowerCase())+"0123456789";
-		char[] symbols = alphanum.toCharArray();
-
-        for (int idx = 0; idx < buf.length; ++idx)
-            buf[idx] = symbols[(int)(Math.random()*symbols.length)];
-		return new String(buf);
-	}
-
-	public static void updateAppCDKJson() throws Exception{
-
-		String content = new String(Files.readAllBytes(Paths.get("cdk.json")));
-		String token = "mvn -e -q compile exec:java";
-		if( ! content.contains(token)){
-			System.out.println("Inside the cdk.json file an element named app must have the following value: `"+token+"`");
-			System.exit(0);
-		}
-		content	=	content.replaceAll(token, "mvn -e -q -Paws-build compile exec:java");
-		System.out.println( content );
-		File f = new File("cdk.json");
-		f.delete();
-		Files.write( Paths.get("cdk.json"), content.getBytes());
-	}
 
 	public static void zipDirectory(ZipOutputStream zos, File fileToZip, String parentDirectoryName, final Boolean REMOVE_ROOT) throws Exception {
 
@@ -218,25 +116,6 @@ public class Util {
 			fis.close();				
 		}
 	}
-
-    public void updateConfigurationFiles(String appName, String account, String region, String ecsTaskExecutionRole){
-
-        Util util   =   new Util();
-        //buildspec.yml
-        util.updateFile("buildspec-template.yml", "buildspec.yml", new HashMap<String,String>(){{
-            put("ACCT_NUMBER", account);
-            put("APPLICATION", appName);
-            put("REGION", region);
-        }});
-        //appspec.yml
-        util.updateFile("appspec-template.yaml", "appspec.yaml", "APPLICATION", appName);
-        //taskdef
-        util.updateFile("taskdef-template.json", "taskdef.json", new HashMap<String,String>(){{
-            put("APPLICATION", appName);
-            put("TASK_EXEC_ROLE", "arn:aws:iam::"+account+":role/"+ecsTaskExecutionRole);
-        }});        
-             
-    }
 
     public static void createSrcZip(final String appName) throws Exception {
 

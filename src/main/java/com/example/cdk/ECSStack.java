@@ -4,9 +4,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.example.cdk.PipelineStack.DeploymentConfig;
+
+import org.jetbrains.annotations.Nullable;
+
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CustomResource;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.customresources.Provider;
@@ -60,19 +65,14 @@ public class ECSStack extends Stack {
     private static final Integer   ECS_TASK_CONTAINER_PORT = 8080;
     private static final Integer   ECS_TASK_CONTAINER_HOST_PORT = 8080;    
 
-    static final String DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery1Minutes";
-    static final String DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery3Minutes";
-    static final String DEPLOY_CANARY_10_PERCENT_EVERY_5_MINUTES = "CodeDeployDefault.ECSCanary10percent5Minutes";
-    static final String DEPLOY_CANARY_10_PERCENT_15_MINUTES = "CodeDeployDefault.ECSCanary10percent15Minutes";
-    static final String DEPLOY_ALL_AT_ONCE = "CodeDeployDefault.ECSAllAtOnce";
-
     private SecurityGroup sg;
     
-    public ECSStack(Construct scope, String id, String appName, String deploymentConfig, StackProps props){
+    public ECSStack(Construct scope, String id, ECSStackProps props ){
 
         super(scope, id, props);
+        String appName          = props.getAppName();
         //configuration between linear and blue/green
-        String deploymentConfigName =   deploymentConfig;
+        String deploymentConfigName =   props.getDeploymentConfig();
 
         Vpc vpc = Vpc.Builder.create(this, appName+"-vpc") 
             .maxAzs(2)
@@ -108,8 +108,8 @@ public class ECSStack extends Stack {
         ApplicationLoadBalancer alb     =   createALB(appName, appName, cluster);
 
          FargateService service = createFargateService(appName, cluster, alb, appName, taskRole, executionRole);
-         createCustomResource(appName, cluster.getClusterName(), service.getServiceName(), deploymentConfigName, props);            
-        
+         createCustomResource(appName, cluster.getClusterName(), service.getServiceName(), deploymentConfigName, props);                    
+
          CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
             .value(vpc.getVpcArn())
@@ -128,22 +128,13 @@ public class ECSStack extends Stack {
         CfnOutput.Builder.create(this, "ExecutionRole")
             .description("Execution Role name of the Task being executed ")
             .value(taskRole.getRoleName())
-            .build();     
+            .build();              
             
         CfnOutput.Builder.create(this, "ApplicationURL")
             .description("Application is acessible from this url")
             .value("http://"+alb.getLoadBalancerDnsName())
-            .build();     
+            .build();                
                         
-    }
-
-    public DockerImageAsset createDockerAsset(){
-
-        DockerImageAsset dockerAsset = DockerImageAsset.Builder
-            .create(this, "hello-world/v1")
-            .directory("./target")
-            .build();
-        return dockerAsset;
     }
 
     private ApplicationLoadBalancer createALB(final String appName, final String serviceName, final Cluster cluster){
@@ -247,7 +238,7 @@ public class ECSStack extends Stack {
 
     private Role createCodeDeployExecutionRole(final String appName, StackProps props){
 
-        return Role.Builder.create(this, appName+"-codedeploy-role")
+        return Role.Builder.create(this, appName+"-codedeploy-exec-role")
             .roleName(appName+"-codedeploy-deployment-group")
             .assumedBy(ServicePrincipal.Builder.create("codedeploy.amazonaws.com").build())
             .description("CodeBuild Execution Role for "+appName)
@@ -310,7 +301,7 @@ public class ECSStack extends Stack {
         lambdaEnv.put("pipelineName", appName == null ? "" : appName);
         lambdaEnv.put("ecsClusterName", clusterName == null ? "" : clusterName);
         lambdaEnv.put("ecsServiceName", serviceName == null ? "" : serviceName);
-        lambdaEnv.put("deploymentConfigName", deploymentConfigName == null ? ECSStack.DEPLOY_ALL_AT_ONCE : deploymentConfigName );
+        lambdaEnv.put("deploymentConfigName", deploymentConfigName == null ? DeploymentConfig.DEPLOY_ALL_AT_ONCE : deploymentConfigName );
 
 
         SingletonFunction customResource = SingletonFunction.Builder.create(this, appName+"-codedeploy-blue-green-lambda")
@@ -353,4 +344,128 @@ public class ECSStack extends Stack {
     public String getTgGreenName() {
         return tgGreenName;
     }
+
+    public static class ECSStackProps implements StackProps {
+
+        String appName              =   null;
+        String deploymentConfig     =   null;
+        String pipelineRoleArn      =   null;
+        Environment env             =   null;
+        Environment envPipeline     =   null;
+        Map<String,String> tags     =   null;
+        Boolean terminationProtection   =   Boolean.FALSE;
+        String stackName    =   null;
+
+        @Override
+        public @Nullable Map<String, String> getTags() {
+            return StackProps.super.getTags();
+        }
+
+        @Override
+        public @Nullable Boolean getTerminationProtection() {
+            return this.terminationProtection;
+        }
+
+        @Override
+        public @Nullable String getDescription() {
+            return "ECSStack. Application: "+getAppName();
+        }
+
+        public String getAppName(){
+            return appName;
+        }
+
+        public Environment getEnv(){
+            return env;
+        }
+
+        public Environment getEnvPipeline() {
+            return envPipeline;
+        }
+
+        public String getDeploymentConfig(){
+            return deploymentConfig;
+        }
+
+        public String getPipelineRoleArn(){
+            return pipelineRoleArn;
+        }
+
+        @Override
+        public String getStackName(){
+            return stackName;
+        }        
+
+
+        public ECSStackProps(String appName, String deploymenConfig, String pipelineRoleArn, Environment env, Environment envPipeline, Map<String,String> tags, Boolean terminationProtection, String stackName){
+            this.appName = appName;
+            this.env = env;
+            this.envPipeline = envPipeline;
+            this.tags = tags;
+            this.terminationProtection = terminationProtection;
+            this.deploymentConfig = deploymenConfig;
+            this.pipelineRoleArn = pipelineRoleArn;
+            this.stackName  =   stackName;
+        }
+
+        public static Builder builder(){
+            return new Builder();
+        }
+        static class Builder{
+
+
+            private String appName  =   null;;
+            private String deploymentConfig =   null;
+            private String pipelineRoleArn  =   null;
+            private Environment env =   null;
+            private Environment envPipeline =   null;
+            private Map<String,String> tags =   null;
+            private Boolean terminationProtection = Boolean.FALSE;
+            private String stackName    =   null;
+
+            public Builder appName(String appName){
+                this.appName = appName;
+                return this;
+            }
+
+            public Builder env(Environment env){
+                this.env = env;
+                return this;
+            }
+
+            public Builder tags(Map<String, String> tags){
+                this.tags = tags;
+                return this;
+            }
+
+            public Builder terminationProtection(Boolean terminationProtection){
+                this.terminationProtection = terminationProtection;
+                return this;
+            }
+
+            public Builder envPipeline(Environment envPipeline){
+                this.envPipeline = envPipeline;
+                return this;
+            }
+
+            public Builder deploymentConfig(String deploymentConfig){
+                this.deploymentConfig = deploymentConfig;
+                return this;
+            }
+
+            public Builder pipelineRoleArn(String pipelineRoleArn){
+                this.pipelineRoleArn = pipelineRoleArn;
+                return this;
+            }
+
+            public Builder stackName(final String stackName){
+                this.stackName = stackName;
+                return this;
+            }            
+
+            public ECSStackProps build(){
+                return new ECSStackProps(appName, deploymentConfig, pipelineRoleArn, env, envPipeline, tags, terminationProtection, stackName);
+            }
+        }
+    }    
 }
