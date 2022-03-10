@@ -18,11 +18,11 @@ import software.amazon.awscdk.services.s3.deployment.ISource;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.constructs.Construct;
 
-public class GitStack extends Stack {
+public class Git extends Stack {
     
     private IRepository gitRepo =   null;
     
-    public GitStack(Construct scope, String id, String appName, final Boolean IS_CREATING, StackProps props){
+    public Git(Construct scope, String id, String appName, final Boolean IS_CREATING, StackProps props){
         
         super(scope, id, props);
 

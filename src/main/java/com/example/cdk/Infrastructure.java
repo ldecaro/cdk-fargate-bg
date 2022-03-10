@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.example.cdk.PipelineStack.DeploymentConfig;
+import com.example.cdk.Pipeline.StageConfig;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -51,7 +51,7 @@ import software.amazon.awscdk.services.lambda.SingletonFunction;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.constructs.Construct;
 
-public class ECSStack extends Stack {
+public class Infrastructure extends Stack {
 
     private String listenerBlueArn  = null;
     private String listenerGreenArn = null;
@@ -67,22 +67,29 @@ public class ECSStack extends Stack {
 
     private SecurityGroup sg;
     
-    public ECSStack(Construct scope, String id, ECSStackProps props ){
+    public Infrastructure(Construct scope, String id, ECSStackProps props ){
 
         super(scope, id, props);
         String appName          = props.getAppName();
+        String strEnvType       =   id.split("-")[id.split("-").length-1].toLowerCase();
         //configuration between linear and blue/green
         String deploymentConfigName =   props.getDeploymentConfig();
 
         Vpc vpc = Vpc.Builder.create(this, appName+"-vpc") 
             .maxAzs(2)
+            .natGateways(1)
             .enableDnsHostnames(Boolean.TRUE)
             .enableDnsSupport(Boolean.TRUE)            
             .build();
         
-        SecurityGroup sg    =   SecurityGroup.Builder.create(this, appName+"-sg").vpc(vpc).allowAllOutbound(Boolean.TRUE).build();
-            sg.addIngressRule(Peer.anyIpv4(), Port.allTcp());
-            sg.addIngressRule(Peer.anyIpv4(), Port.allUdp());
+        SecurityGroup sg    =   SecurityGroup.Builder
+            .create(this, appName+"-sg")
+            .vpc(vpc)
+            .allowAllOutbound(Boolean.TRUE)
+            .build();
+
+        sg.addIngressRule(Peer.anyIpv4(), Port.allTcp());
+        sg.addIngressRule(Peer.anyIpv4(), Port.allUdp());
         
         Cluster cluster =   Cluster.Builder.create(this, appName+"-cluster")
             .vpc(vpc)
@@ -98,17 +105,25 @@ public class ECSStack extends Stack {
             .build();
 
         Role executionRole = Role.Builder.create(this, appName+"-ecsExecutionRole")
-            .roleName(appName)
+            .roleName(appName+"-"+strEnvType)
             .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com").build())
             .managedPolicies(Arrays.asList(
-                ManagedPolicy.fromManagedPolicyArn(this, "ecsTaskExecutionManagedPolicy", "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"),
+                ManagedPolicy.fromManagedPolicyArn(
+                    this, 
+                    "ecsTaskExecutionManagedPolicy", 
+                    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"),
                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy")
             )).build();
 
-        ApplicationLoadBalancer alb     =   createALB(appName, appName, cluster);
+        ApplicationLoadBalancer alb     =   createALB(appName, appName, cluster, strEnvType);
 
-         FargateService service = createFargateService(appName, cluster, alb, appName, taskRole, executionRole);
-         createCustomResource(appName, cluster.getClusterName(), service.getServiceName(), deploymentConfigName, props);                    
+        FargateService service = createFargateService(appName, cluster, alb, appName, taskRole, executionRole, strEnvType);
+        createCustomResource(
+            appName+"-"+strEnvType, 
+            cluster.getClusterName(), 
+            service.getServiceName(), 
+            deploymentConfigName, 
+            props);                    
 
          CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
@@ -137,7 +152,7 @@ public class ECSStack extends Stack {
                         
     }
 
-    private ApplicationLoadBalancer createALB(final String appName, final String serviceName, final Cluster cluster){
+    private ApplicationLoadBalancer createALB(final String appName, final String serviceName, final Cluster cluster, final String strEnvType){
         
         ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(this, appName+"-LB")
             .loadBalancerName(appName+"-alb").vpc(cluster.getVpc()).internetFacing(true)
@@ -158,7 +173,7 @@ public class ECSStack extends Stack {
 
         ApplicationTargetGroup tgGreen   =   ApplicationTargetGroup.Builder.create(this, appName+"-green-tg")
             .protocol(ApplicationProtocol.HTTP)
-            .targetGroupName(appName+"-Green")
+            .targetGroupName(appName+"-"+strEnvType+"-Green")
             .targetType(TargetType.IP)
             .vpc(cluster.getVpc())
             .build();
@@ -180,11 +195,11 @@ public class ECSStack extends Stack {
         return alb;
     }
 
-    private FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, String serviceName, Role taskRole, Role executionRole ){
+    private FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, String serviceName, Role taskRole, Role executionRole, String strEnvType ){
 
         FargateService service  =   FargateService.Builder.create(this, serviceName+"-fargateSvc")
             .desiredCount(1)
-            .cluster( cluster )
+            .cluster(cluster)
             .serviceName(serviceName)
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
             .securityGroups(Arrays.asList(this.sg))
@@ -193,8 +208,15 @@ public class ECSStack extends Stack {
   
         ApplicationListener listener = lb.getListeners().get(0);
 
-        String tgBlueName = appName+"-Blue";    
-        listener.addTargets(appName+"blue-tg", AddApplicationTargetsProps.builder().targetGroupName(tgBlueName).protocol(ApplicationProtocol.HTTP).port(8080).targets(Arrays.asList(service)).build() );
+        String tgBlueName = appName+"-"+strEnvType+"-Blue";
+        listener.addTargets(
+            appName+"blue-tg", 
+            AddApplicationTargetsProps.builder()
+                .targetGroupName(tgBlueName)
+                .protocol(ApplicationProtocol.HTTP)
+                .port(8080)
+                .targets(Arrays.asList(service))
+                .build());
         this.tgBlueName = tgBlueName;
         
         return service;
@@ -208,13 +230,13 @@ public class ECSStack extends Stack {
             .taskRole(taskRole)
             .executionRole(executionRole)
             .networkMode(NetworkMode.AWS_VPC)
-            .cpu(ECSStack.ECS_TASK_CPU)
-            .memoryMiB(ECSStack.ECS_TASK_MEMORY)
+            .cpu(Infrastructure.ECS_TASK_CPU)
+            .memoryMiB(Infrastructure.ECS_TASK_MEMORY)
             .family(serviceName)
             .compatibility(Compatibility.FARGATE)
             .build();    
 
-        taskDef.addContainer( serviceName+"-app", ContainerDefinitionOptions.builder()
+        taskDef.addContainer(serviceName+"-app", ContainerDefinitionOptions.builder()
             .containerName(serviceName)
             .memoryReservationMiB(ECS_CONTAINER_MEMORY_RESERVATION)
             .memoryLimitMiB(ECS_CONTAINER_MEMORY_LIMIT)
@@ -226,8 +248,8 @@ public class ECSStack extends Stack {
             .essential(Boolean.TRUE)
             .portMappings(Arrays.asList(
                 PortMapping.builder()
-                    .containerPort(ECSStack.ECS_TASK_CONTAINER_PORT)
-                    .hostPort(ECSStack.ECS_TASK_CONTAINER_HOST_PORT)
+                    .containerPort(Infrastructure.ECS_TASK_CONTAINER_PORT)
+                    .hostPort(Infrastructure.ECS_TASK_CONTAINER_HOST_PORT)
                     .protocol(Protocol.TCP)
                 .build()))          
             .environment(env)
@@ -239,7 +261,7 @@ public class ECSStack extends Stack {
     private Role createCodeDeployExecutionRole(final String appName, StackProps props){
 
         return Role.Builder.create(this, appName+"-codedeploy-exec-role")
-            .roleName(appName+"-codedeploy-deployment-group")
+            // .roleName(appName+"-codedeploy-deployment-group")
             .assumedBy(ServicePrincipal.Builder.create("codedeploy.amazonaws.com").build())
             .description("CodeBuild Execution Role for "+appName)
             .path("/")
@@ -277,7 +299,7 @@ public class ECSStack extends Stack {
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployFullAccess"),
                 ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
             ))
-            .roleName(appName+"-custom-lambda-role")
+            // .roleName(appName+"-custom-lambda-role")
             .assumedBy(ServicePrincipal.Builder.create("lambda.amazonaws.com").build())
             .description("Execution Role for CustomLambda "+appName+". This lambda creates CodeDeploy application and deployment group for ECS BlueGreen")
             .path("/")
@@ -301,7 +323,7 @@ public class ECSStack extends Stack {
         lambdaEnv.put("pipelineName", appName == null ? "" : appName);
         lambdaEnv.put("ecsClusterName", clusterName == null ? "" : clusterName);
         lambdaEnv.put("ecsServiceName", serviceName == null ? "" : serviceName);
-        lambdaEnv.put("deploymentConfigName", deploymentConfigName == null ? DeploymentConfig.DEPLOY_ALL_AT_ONCE : deploymentConfigName );
+        lambdaEnv.put("deploymentConfigName", deploymentConfigName == null ? StageConfig.DEPLOY_ALL_AT_ONCE : deploymentConfigName );
 
 
         SingletonFunction customResource = SingletonFunction.Builder.create(this, appName+"-codedeploy-blue-green-lambda")
@@ -349,9 +371,7 @@ public class ECSStack extends Stack {
 
         String appName              =   null;
         String deploymentConfig     =   null;
-        String pipelineRoleArn      =   null;
         Environment env             =   null;
-        Environment envPipeline     =   null;
         Map<String,String> tags     =   null;
         Boolean terminationProtection   =   Boolean.FALSE;
         String stackName    =   null;
@@ -379,16 +399,8 @@ public class ECSStack extends Stack {
             return env;
         }
 
-        public Environment getEnvPipeline() {
-            return envPipeline;
-        }
-
         public String getDeploymentConfig(){
             return deploymentConfig;
-        }
-
-        public String getPipelineRoleArn(){
-            return pipelineRoleArn;
         }
 
         @Override
@@ -397,14 +409,12 @@ public class ECSStack extends Stack {
         }        
 
 
-        public ECSStackProps(String appName, String deploymenConfig, String pipelineRoleArn, Environment env, Environment envPipeline, Map<String,String> tags, Boolean terminationProtection, String stackName){
+        public ECSStackProps(String appName, String deploymenConfig, Environment env, Map<String,String> tags, Boolean terminationProtection, String stackName){
             this.appName = appName;
             this.env = env;
-            this.envPipeline = envPipeline;
             this.tags = tags;
             this.terminationProtection = terminationProtection;
             this.deploymentConfig = deploymenConfig;
-            this.pipelineRoleArn = pipelineRoleArn;
             this.stackName  =   stackName;
         }
 
@@ -414,14 +424,12 @@ public class ECSStack extends Stack {
         static class Builder{
 
 
-            private String appName  =   null;;
+            private String appName          =   null;;
             private String deploymentConfig =   null;
-            private String pipelineRoleArn  =   null;
-            private Environment env =   null;
-            private Environment envPipeline =   null;
+            private Environment env         =   null;
             private Map<String,String> tags =   null;
             private Boolean terminationProtection = Boolean.FALSE;
-            private String stackName    =   null;
+            private String stackName        =   null;
 
             public Builder appName(String appName){
                 this.appName = appName;
@@ -443,18 +451,8 @@ public class ECSStack extends Stack {
                 return this;
             }
 
-            public Builder envPipeline(Environment envPipeline){
-                this.envPipeline = envPipeline;
-                return this;
-            }
-
             public Builder deploymentConfig(String deploymentConfig){
                 this.deploymentConfig = deploymentConfig;
-                return this;
-            }
-
-            public Builder pipelineRoleArn(String pipelineRoleArn){
-                this.pipelineRoleArn = pipelineRoleArn;
                 return this;
             }
 
@@ -464,7 +462,7 @@ public class ECSStack extends Stack {
             }            
 
             public ECSStackProps build(){
-                return new ECSStackProps(appName, deploymentConfig, pipelineRoleArn, env, envPipeline, tags, terminationProtection, stackName);
+                return new ECSStackProps(appName, deploymentConfig, env, tags, terminationProtection, stackName);
             }
         }
     }    

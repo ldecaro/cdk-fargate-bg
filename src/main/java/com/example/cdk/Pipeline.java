@@ -2,11 +2,12 @@ package com.example.cdk;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.example.cdk.ECSStack.ECSStackProps;
+import com.example.cdk.Infrastructure.ECSStackProps;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +17,6 @@ import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
-import software.amazon.awscdk.StageProps;
 import software.amazon.awscdk.pipelines.CodeBuildOptions;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
@@ -41,7 +41,6 @@ import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroupAttributes;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.codepipeline.Artifact;
 import software.amazon.awscdk.services.codepipeline.IStage;
-import software.amazon.awscdk.services.codepipeline.Pipeline;
 import software.amazon.awscdk.services.codepipeline.actions.CodeCommitTrigger;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsContainerImageInput;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsDeployAction;
@@ -53,9 +52,9 @@ import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.constructs.Construct;
 
-public class PipelineStack extends Stack {
+public class Pipeline extends Stack {
     
-    public PipelineStack(Construct scope, String id, final PipelineStackProps props) throws Exception{
+    public Pipeline(Construct scope, String id, final PipelineStackProps props) throws Exception{
 
         super(scope, id, props);
 
@@ -72,7 +71,7 @@ public class PipelineStack extends Stack {
 
         Role pipelineRole   =   createPipelineRole(appName);  
 
-        Pipeline codePipeline   =   Pipeline.Builder.create(this, "-codepipeline")
+        software.amazon.awscdk.services.codepipeline.Pipeline codePipeline   =   software.amazon.awscdk.services.codepipeline.Pipeline.Builder.create(this, "-codepipeline")
             .role(pipelineRole)
             .crossAccountKeys(Boolean.TRUE)//tirar no pipeline e verificar se a bucket policy do s3 e da kms que encripta o s3 continuam lá. checar o change set no CloudFormation.
             .restartExecutionOnUpdate(Boolean.TRUE)
@@ -94,44 +93,37 @@ public class PipelineStack extends Stack {
                     "mkdir cdk.out",
                     "mvn -B clean package",
                     "cd target && ls -d  */ | xargs rm -rf && ls -lah && cd ..", //clean up target folder
-                    "cdk synth -c appName=$APP_NAME"))
+                    "cdk synth -c appName=$APP_NAME -c alpha=$ALPHA -c beta=$BETA"))
                 .build())
             .build();
 
         //processing list of deploymentConfigs, one per stage: alpha, beta, gamma
         processDeploymentConfig(props, pipelineRole);
 
-        String [] stageDescription = new String[]{"Alpha", "Beta", "Gamma", "Delta"};
-        for(int stageNumber=0; stageNumber<props.getDeploymentConfigs().length; stageNumber++){
+        for(StageConfig deployConfig: props.getDeploymentConfigs()){
             
-            DeploymentConfig deployConfig =   props.getDeploymentConfigs()[stageNumber];
-            
+            final String envType =   deployConfig.getEnvType().toString().toLowerCase();
             ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
                 .input(pipeline.getCloudAssemblyFileSet())
                 .additionalInputs(new HashMap<String,IFileSetProducer>(){{
                     put("../source", source);
                 }})
                 .primaryOutputDirectory("codedeploy")             
-                .commands(configureCodeDeploy(appName, deployConfig.getEnv(), (stageNumber+1) ))
+                .commands(configureCodeDeploy(appName, deployConfig ))
                 .build();    
 
-            DeployECS deploy = new DeployECS(this, 
-                "Deploy-"+stageDescription[stageNumber], 
+            Deploy deploy = new Deploy(this, 
+                "Deploy-"+deployConfig.envType.getType(), 
                 appName,
-                deployConfig.getDeployConfig(),
-                stageDescription[stageNumber].toLowerCase(),
-                StageProps.builder()
-                    .env(deployConfig.getEnv())
-                    .build());
+                deployConfig);
 
             StageDeployment stage = pipeline.addStage(deploy);
             stage.addPre(codeBuildPre);
             stage.addPost(new CodeDeployStep(
-                "codeDeploy"+stageDescription[stageNumber], 
-                stageNumber+1,
+                "codeDeploy"+envType, 
+                envType,
                 codeBuildPre.getPrimaryOutput(), 
-                deployConfig.getCodeDeployRole(),
-                deployConfig.getEcsDeploymentGroup()));
+                deployConfig));
         }
 
         CfnOutput.Builder.create(this, "PipelineRole")
@@ -148,19 +140,19 @@ public class PipelineStack extends Stack {
             System.out.println("Not showing output PipelineName because it has not yet been created");
         }
     }
-    protected class DeployECS extends Stage {
+    protected class Deploy extends Stage {
 
-        public DeployECS(Construct scope, String id, String appName, String deployConfig, String stageDescription, StageProps props) throws  Exception{
+        public Deploy(Construct scope, String id, String appName, StageConfig deploymentConfig) throws Exception { //String deployConfig, EnvType envType, StageProps props) throws  Exception{
 
-            super(scope, id);
+            super(scope, id );
 
-            new ECSStack(this, 
-                appName+"-ecs-"+stageDescription, 
+            new Infrastructure(this, 
+                appName+"-infra-"+deploymentConfig.getEnvType().toString().toLowerCase(), 
                 ECSStackProps.builder()
                     .appName(appName)
-                    .deploymentConfig(deployConfig)
-                    .stackName(appName+"-ecs-"+stageDescription)
-                    .env(props.getEnv())
+                    .deploymentConfig(deploymentConfig.getDeployConfig())
+                    .stackName(appName+"-infra-"+deploymentConfig.getEnvType().toString().toLowerCase())
+                    .env(deploymentConfig.getEnv())
                     .build());
         }
     }
@@ -171,14 +163,14 @@ public class PipelineStack extends Stack {
         FileSet fileSet;
         Role codeDeployRole;
         IEcsDeploymentGroup dg;
-        Integer stageNumber = 0;
+        String envType;
 
-        public CodeDeployStep(String id, Integer stageNumber, FileSet fileSet, Role codeDeployRole, IEcsDeploymentGroup dg){
+        public CodeDeployStep(String id, String envType, FileSet fileSet, StageConfig deploymentConfig){//} Role codeDeployRole, IEcsDeploymentGroup dg){
             super(id);
             this.fileSet    =   fileSet;
-            this.codeDeployRole =   codeDeployRole;
-            this.dg    =   dg;
-            this.stageNumber = stageNumber;
+            this.codeDeployRole =   deploymentConfig.getCodeDeployRole();
+            this.dg    =   deploymentConfig.getEcsDeploymentGroup();
+            this.envType = envType;
         }
 
         @Override
@@ -197,15 +189,14 @@ public class PipelineStack extends Stack {
                     .taskDefinitionPlaceholder("IMAGE1_NAME")
                     .build()))
                 .deploymentGroup( dg )
-                .variablesNamespace("deployment"+stageNumber)
+                .variablesNamespace("deployment-"+envType)
                 .build());
 
             return CodePipelineActionFactoryResult.builder().runOrdersConsumed(1).build();
         }
-        
     }
 
-    private CodeBuildOptions getCodeBuildOptions(String appName, DeploymentConfig[] deploymentConfigs ){
+    private CodeBuildOptions getCodeBuildOptions(String appName, StageConfig[] deploymentConfigs ){
 
         List<PolicyStatement> policies = new ArrayList<>();
         policies.add(PolicyStatement.Builder.create()
@@ -214,7 +205,13 @@ public class PipelineStack extends Stack {
             .resources(Arrays.asList("arn:aws:iam::*:role/cdk-*"))
             .build());
 
-        for(DeploymentConfig deployConfig: deploymentConfigs){
+        HashMap<String,BuildEnvironmentVariable> envVars = new HashMap<>();
+        envVars.put("APP_NANE", BuildEnvironmentVariable.builder()
+            .type(BuildEnvironmentVariableType.PLAINTEXT)
+            .value(appName == null ? "" : appName)
+            .build());
+        
+        for(StageConfig deployConfig: deploymentConfigs){
 
             if( deployConfig.getCodeDeployRole()!=null){
                 policies.add(PolicyStatement.Builder.create()
@@ -223,17 +220,17 @@ public class PipelineStack extends Stack {
                 .resources(Arrays.asList( deployConfig.getCodeDeployRole().getRoleArn()) )
                 .build());
             }
-        }
+            //passing environment variables to codebuild so it respects the initial account setup
+            envVars.put(deployConfig.getEnvType().getType().toUpperCase(), BuildEnvironmentVariable.builder()
+                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                .value(deployConfig.getEnv().getAccount()+"/"+deployConfig.getEnv().getRegion())
+                .build());
+        }            
 
         return CodeBuildOptions.builder()
             .rolePolicy(policies)
             .buildEnvironment(BuildEnvironment.builder()
-                .environmentVariables(new HashMap<String,BuildEnvironmentVariable>(){{
-                    put("APP_NAME", BuildEnvironmentVariable.builder()
-                        .type(BuildEnvironmentVariableType.PLAINTEXT)
-                        .value(appName == null ? "" : appName)
-                        .build());
-                }})
+                .environmentVariables(envVars)
                 .computeType(ComputeType.MEDIUM)
                 .buildImage(LinuxBuildImage.AMAZON_LINUX_2_3)
                 .privileged(Boolean.TRUE)//TODO test with priviledge = false
@@ -249,22 +246,27 @@ public class PipelineStack extends Stack {
      * @param stageNumber
      * @return
      */
-    private List<String> configureCodeDeploy(String appName, Environment targetEnv, Integer stageNumber){
+    private List<String> configureCodeDeploy(String appName, StageConfig deploymentConfig){
+
+        final String strEnvType   =   deploymentConfig.getEnvType().toString().toLowerCase();
+        final String account    =   deploymentConfig.getEnv().getAccount();
+        final String region =   deploymentConfig.getEnv().getRegion();
+
         return Arrays.asList(
             "mkdir codedeploy",
             "ls -l",
             // "find . -type f -exec cat {} \\;",
             "cat *.assets.json",
-            "export REPO_NAME=$(cat "+appName+"-svc-"+stageNumber+".assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName')",
-            "export TAG_NAME=$(cat "+appName+"-svc-"+stageNumber+".assets.json | jq -r '.dockerImages | keys[0]')",
+            "export REPO_NAME=$(cat "+appName+"-svc-"+strEnvType+".assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName')",
+            "export TAG_NAME=$(cat "+appName+"-svc-"+strEnvType+".assets.json | jq -r '.dockerImages | keys[0]')",
             "echo $REPO_NAME",
             "echo $TAG_NAME",
-            "printf '{\"ImageURI\":\"%s\"}' \""+targetEnv.getAccount()+".dkr.ecr."+targetEnv.getRegion()+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
+            "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
             "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-appspec.yaml >> codedeploy/appspec.yaml",
-            "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+targetEnv.getAccount()+":role/"+appName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
+            "sed 's#APPLICATION#"+appName+"#g' ../source/blue-green/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+appName+"-"+strEnvType+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
             "cat codedeploy/appspec.yaml",
             "cat codedeploy/taskdef.json",
-            "cat codedeploy/imageDetail.json"        
+            "cat codedeploy/imageDetail.json"
         );     
     }
 
@@ -282,7 +284,7 @@ public class PipelineStack extends Stack {
         Role codeDeployRole =   null;
 
         //if this is a cross-account scenario...
-        for(DeploymentConfig deployConfig: props.getDeploymentConfigs()){
+        for(StageConfig deployConfig: props.getDeploymentConfigs()){
 
             if( deployConfig.getCodeDeployRole()!=null ){
 
@@ -314,11 +316,11 @@ public class PipelineStack extends Stack {
                         this, 
                         appName+"-ecsdeploymentgroup", 
                         EcsDeploymentGroupAttributes.builder()
-                            .deploymentGroupName( appName )
+                            .deploymentGroupName( appName+"-"+deployConfig.getEnvType().toString().toLowerCase() )
                             .application(EcsApplication.fromEcsApplicationName(
                                 this, 
                                 appName+"-ecs-deploy-app", 
-                                appName))                                            
+                                appName+"-"+deployConfig.getEnvType().toString().toLowerCase()))                                            
                             .build());                    
                 }
                 deployConfig.setCodeDeployRole(codeDeployRole);
@@ -329,17 +331,17 @@ public class PipelineStack extends Stack {
 
     protected static class PipelineStackProps implements StackProps {
 
-        String appName              =   null;
-        private IRepository gitRepo =   null;     
-        Environment env             =   null;
-        Environment envTarget       =   null;
-        Map<String,String> tags     =   null;
-        Boolean terminationProtection   =   Boolean.FALSE;
-        DeploymentConfig[] deploymentConfigs  =   null;      
+        private String appName;
+        private IRepository gitRepo;     
+        private Environment env;
+        private Environment envTarget;
+        private Map<String,String> tags;
+        private Boolean terminationProtection   =   Boolean.FALSE;
+        private StageConfig[] deploymentConfigs;      
 
         @Override
         public @Nullable Map<String, String> getTags() {
-            return StackProps.super.getTags();
+            return tags;
         }
 
         @Override
@@ -368,11 +370,11 @@ public class PipelineStack extends Stack {
             return envTarget;
         }
 
-        public DeploymentConfig[] getDeploymentConfigs(){
+        public StageConfig[] getDeploymentConfigs(){
             return deploymentConfigs;
         }
 
-        public PipelineStackProps(String appName, IRepository gitRepo, Environment env, Environment envTarget, Map<String,String> tags, Boolean terminationProtection, DeploymentConfig[] deploymentConfigs){//} Role codeDeployRoleAlpha, IEcsDeploymentGroup dgAlpha, String deployConfigAlpha, Role codeDeployRoleBeta, IEcsDeploymentGroup dgBeta, String deployConfigBeta, DeploymentConfig[] deploymentConfigs){
+        public PipelineStackProps(String appName, IRepository gitRepo, Environment env, Environment envTarget, Map<String,String> tags, Boolean terminationProtection, StageConfig[] deploymentConfigs){
             this.appName = appName;
             this.env = env;
             this.envTarget = envTarget;
@@ -388,13 +390,13 @@ public class PipelineStack extends Stack {
         static class Builder{
 
 
-            private String appName  =   null;
-            private IRepository gitRepo =   null;
-            private Environment env =   null;
-            private Environment envTarget   =   null;
-            private Map<String,String> tags =   null;
+            private String appName;
+            private IRepository gitRepo;
+            private Environment env;
+            private Environment envTarget;
+            private Map<String,String> tags;
             private Boolean terminationProtection = Boolean.FALSE;
-            private DeploymentConfig[] deploymentConfigs   =   null;
+            private StageConfig[] deploymentConfigs;
 
             public Builder appName(String appName){
                 this.appName = appName;
@@ -426,18 +428,25 @@ public class PipelineStack extends Stack {
                 return this;
             }
 
-            public Builder deploymentConfigs(DeploymentConfig[] deploymentConfigs){
-                this.deploymentConfigs = deploymentConfigs;
+            public Builder deploymentConfigs(StageConfig[] deploymentConfigs){
+
+                // this.deploymentConfigs = deploymentConfigs;
+                //order environments alphabetically alpha, beta, gamma
+                this.deploymentConfigs = Arrays.stream(deploymentConfigs).sorted(Comparator.comparing(StageConfig::getEnvType)).toArray(StageConfig[]::new);
+                for(StageConfig c: deploymentConfigs){
+                    System.out.println(c);
+                }
+
                 return this;
             }          
 
             public PipelineStackProps build(){
-                return new PipelineStackProps(appName, gitRepo, env, envTarget, tags, terminationProtection, deploymentConfigs);// codeDeployRoleAlpha, dgAlpha, deployConfigAlpha, codeDeployRoleBeta, dgBeta, deployConfigBeta, deploymentConfigs);
+                return new PipelineStackProps(appName, gitRepo, env, envTarget, tags, terminationProtection, deploymentConfigs);
             }
         }
     }
     
-    public static class DeploymentConfig{
+    public static class StageConfig{
 
         static final String DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery1Minutes";
         static final String DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery3Minutes";
@@ -445,10 +454,27 @@ public class PipelineStack extends Stack {
         static final String DEPLOY_CANARY_10_PERCENT_15_MINUTES = "CodeDeployDefault.ECSCanary10percent15Minutes";
         static final String DEPLOY_ALL_AT_ONCE = "CodeDeployDefault.ECSAllAtOnce";            
 
-        private String deployConfig    =    null;
-        private IEcsDeploymentGroup dg  =   null;
-        private Role codeDeployRole =   null;
-        private Environment env =   null;
+        private String deployConfig;
+        private IEcsDeploymentGroup dg;
+        private Role codeDeployRole;
+        private Environment env;
+        private EnvType envType;
+        
+        public enum EnvType {
+
+            ALPHA("Alpha"), 
+            BETA("Beta"), 
+            GAMMA("Gamma");
+
+            public final String type;
+            EnvType(String type){
+                this.type = type;
+            }
+
+            public String getType(){
+                return type;
+            }
+        }
 
         public String getDeployConfig(){
             return deployConfig;
@@ -474,16 +500,26 @@ public class PipelineStack extends Stack {
             this.dg =   dg;
         }
 
-        public DeploymentConfig(final String deployConfig, Environment env){
+        public StageConfig(final String deployConfig, Environment env, EnvType envType){
             this.deployConfig   =   deployConfig;
             this.env = env;
+            this.envType    =   envType;
         }
 
-        public DeploymentConfig(String deployConfig, Environment env, Role codeDeployRole, IEcsDeploymentGroup dg){
+        public EnvType getEnvType(){
+            return this.envType;
+        }
+
+        public StageConfig(String deployConfig, Environment env, EnvType envType, Role codeDeployRole, IEcsDeploymentGroup dg){
             this.codeDeployRole =   codeDeployRole;
             this.dg    =    dg;
             this.deployConfig   =   deployConfig;
             this.env    =   env;
+            this.envType    =   envType;
+        }
+
+        public String toString(){
+            return env.getAccount()+"/"+env.getRegion()+"/"+envType;
         }
     }
 }
