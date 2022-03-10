@@ -55,10 +55,23 @@ Download the github project and build project locally:
 
 Deploy Blue/Green fargate microservice:
 
+- Single Account
+
 ```
 cdk bootstrap
-cdk bootstrap aws://123456789012/us-east-1 #cross-account
+cdk deploy ecs-microservice-pipeline --require-approval never
+```
+
+- Cross-Acccount
+```
+cdk bootstrap aws://987654321098/us-east-1
+cdk bootstrap aws://123456789012/us-east-1
+
+#cross-account with onle Beta stage in the remote account
 cdk deploy ecs-microservice-pipeline -c beta=12345678910/us-east-1 --require-approval never
+
+#cross-account  with alpha and beta in remote accounts
+cdk deploy ecs-microservice-pipeline -c alpha=12346787901/us-east-1 -c beta=987654321098 --require-approval never
 ```
 
 It creates an ECS Cluster, deploys the microservice using ECR, creates the CodeCommit repository and a minimal Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: *CodeDeployDefault.ECSLinear10PercentEvery1Minutes*.
