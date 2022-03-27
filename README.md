@@ -1,4 +1,4 @@
-# Reference application: Blue/Green deployment in ECS Fargate with CodeDeploy using CDK
+# Blue/Green Deployments to Amazon ECS using AWS CDK and AWS CodeDeploy
 
 This is a reference application for running a microservice in ECS Fargate that uses AWS CodePipeline, AWS CodeBuild, AWS CodeDeploy and implements a Blue/Green approach for deploying applications in a **single** or **cross-account** scenario.
 
