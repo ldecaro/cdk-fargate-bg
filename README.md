@@ -34,8 +34,10 @@ If you are deploying containers at an enterprise level you might need one of the
 ![Architecture](/imgs/arch.png)
 
 ## Installation 
+
 Requires Java8, Maven, AWS CLI and CDK
 
+- MacOs
 
 ```
 # brew tap adoptopenjdk/openjdk
@@ -43,12 +45,24 @@ Requires Java8, Maven, AWS CLI and CDK
 # brew install maven
 # brew install awscli
 # brew install aws-cdk
+# brew install docker
 ```
+
+- Cloud9
+
+```
+# sudo wget https://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
+# sudo sed -i s/\$releasever/6/g /etc/yum.repos.d/epel-apache-maven.repo
+# sudo yum install -y apache-maven
+
+```
+
 ## Build 
 Download the github project and build project locally:
 
 ```
 # git clone https://github.com/ldecaro/cdk-fargate-bg.git
+# cd cdk-fargate-bg
 # mvn clean package
 ```
 ## Deploy
@@ -71,7 +85,7 @@ cdk bootstrap aws://123456789012/us-east-1
 cdk deploy ecs-microservice-pipeline -c beta=12345678910/us-east-1 --require-approval never
 
 #cross-account  with alpha and beta in remote accounts
-cdk deploy ecs-microservice-pipeline -c alpha=12346787901/us-east-1 -c beta=987654321098 --require-approval never
+cdk deploy ecs-microservice-pipeline -c alpha=12346787901/us-east-1 -c beta=987654321098/us-east-1 --require-approval never
 ```
 
 It creates an ECS Cluster, deploys the microservice using ECR, creates the CodeCommit repository and a minimal Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: *CodeDeployDefault.ECSLinear10PercentEvery1Minutes*.
