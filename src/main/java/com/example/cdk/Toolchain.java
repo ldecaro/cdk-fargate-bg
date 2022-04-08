@@ -2,16 +2,14 @@ package com.example.cdk;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.example.cdk.Infrastructure.ECSStackProps;
-import com.example.cdk.Toolchain.StageConfig.EnvType;
-import com.example.cdk.application.LocalService;
 import com.example.cdk.application.CrossAccountService;
 import com.example.cdk.application.CrossAccountService.CrossAccountApplicationProps;
+import com.example.cdk.application.LocalService;
 import com.example.cdk.application.Service;
 
 import org.jetbrains.annotations.NotNull;
@@ -116,8 +114,6 @@ public class Toolchain extends Stack {
                     "mkdir cdk.out",
                     "mvn -B clean package",
                     "cd target && ls -d  */ | xargs rm -rf && ls -lah && cd ..", //clean up target folder
-                    "echo $ALPHA",
-                    "echo $BETA",
                     "cdk synth -c appName=$APP_NAME -c alpha=$ALPHA -c beta=$BETA"))
                 .build())
             .build();      
@@ -152,7 +148,7 @@ public class Toolchain extends Stack {
                 envType,
                 StackProps.builder()
                     .env(env)
-                    .stackName(props.getAppName()+"-app-"+envType.toString().toLowerCase())
+                    .stackName(props.getAppName()+"-svc-"+envType.toString().toLowerCase())
                     .build());       
         }else{
             System.out.println("Env "+envType+" is in a cross account");
@@ -164,7 +160,7 @@ public class Toolchain extends Stack {
                 CrossAccountApplicationProps.builder()
                     .env(env)
                     .envPipeline(props.getEnv())
-                    .stackName(props.getAppName()+"-app-"+envType.toString().toLowerCase())
+                    .stackName(props.getAppName()+"-svc-"+envType.toString().toLowerCase())
                     .build()
                 );
         }    
@@ -304,7 +300,7 @@ public class Toolchain extends Stack {
                 .environmentVariables(envVars)
                 .computeType(ComputeType.MEDIUM)
                 .buildImage(LinuxBuildImage.AMAZON_LINUX_2_3)
-                .privileged(Boolean.TRUE)//TODO test with priviledge = false
+                .privileged(Boolean.FALSE)
                 .build())
             .build();
 
@@ -326,7 +322,6 @@ public class Toolchain extends Stack {
         return Arrays.asList(
             "mkdir codedeploy",
             "ls -l",
-            // "find . -type f -exec cat {} \\;",
             "cat *.assets.json",
             "export REPO_NAME=$(cat "+appName+"-svc-"+strEnvType+".assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName')",
             "export TAG_NAME=$(cat "+appName+"-svc-"+strEnvType+".assets.json | jq -r '.dockerImages | keys[0]')",
