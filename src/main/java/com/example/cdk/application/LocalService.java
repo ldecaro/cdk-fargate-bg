@@ -1,7 +1,7 @@
 package com.example.cdk.application;
 
-import com.example.cdk.Pipeline.StageConfig;
-import com.example.cdk.Pipeline.StageConfig.EnvType;
+import com.example.cdk.Toolchain.StageConfig;
+import com.example.cdk.Toolchain.StageConfig.EnvType;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
@@ -9,13 +9,13 @@ import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.constructs.Construct;
 
-public class Application extends Stack implements IApplication {
+public class LocalService extends Stack implements Service {
 
     private String deploymentConfig =   null;
     private Environment env =   null;
     private EnvType envType =   null;
 
-    public Application(Construct scope,String appName, String deploymentConfig, EnvType envType, StackProps props) {
+    public LocalService(Construct scope,String appName, String deploymentConfig, EnvType envType, StackProps props) {
         super(scope, appName+"-svc-"+envType.toString().toLowerCase(), props);
 
         this.deploymentConfig   =   deploymentConfig;

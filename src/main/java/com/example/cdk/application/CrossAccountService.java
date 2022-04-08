@@ -3,8 +3,8 @@ package com.example.cdk.application;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.example.cdk.Pipeline.StageConfig;
-import com.example.cdk.Pipeline.StageConfig.EnvType;
+import com.example.cdk.Toolchain.StageConfig;
+import com.example.cdk.Toolchain.StageConfig.EnvType;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -20,7 +20,7 @@ import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.Role;
 import software.constructs.Construct;
 
-public class CrossAccountApplication extends Application {
+public class CrossAccountService extends LocalService {
     
     Role codeDeployActionRole;
     IEcsDeploymentGroup dg;
@@ -29,7 +29,7 @@ public class CrossAccountApplication extends Application {
     Environment env;
     EnvType envType;
 
-    public CrossAccountApplication(Construct scope, String appName, String deploymentConfig, EnvType envType, CrossAccountApplicationProps props){
+    public CrossAccountService(Construct scope, String appName, String deploymentConfig, EnvType envType, CrossAccountApplicationProps props){
         super(scope, appName, deploymentConfig, envType, props);
         codeDeployActionRole   =   createCodeDeployActionRole(appName, props.getEnvPipeline().getAccount());
         this.deploymentConfig   =   deploymentConfig;

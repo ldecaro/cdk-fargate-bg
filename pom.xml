@@ -211,7 +211,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.example.cdk.ReferenceApp</mainClass>
+                    <mainClass>com.example.cdk.Main</mainClass>
                 </configuration>
             </plugin>              
         </plugins>

@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.example.cdk.Pipeline.StageConfig;
+import com.example.cdk.Toolchain.StageConfig;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -155,7 +155,7 @@ public class Infrastructure extends Stack {
     private ApplicationLoadBalancer createALB(final String appName, final String serviceName, final Cluster cluster, final String strEnvType){
         
         ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(this, appName+"-LB")
-            .loadBalancerName(appName+"-alb").vpc(cluster.getVpc()).internetFacing(true)
+            .loadBalancerName(appName+"-alb-"+strEnvType).vpc(cluster.getVpc()).internetFacing(true)
             .build();
 
         ApplicationListener listener = alb.addListener("Listener-Blue", BaseApplicationListenerProps.builder()

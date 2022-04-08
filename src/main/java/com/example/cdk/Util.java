@@ -69,6 +69,15 @@ public class Util {
                 .region(region)
                 .build();
     }
+
+	public static Environment makeEnv(String env){
+
+        if( env != null && !"undefined".equals(env) && !"".equals(env.trim())){
+            return Util.makeEnv(env.split("/")[0], env.split("/")[1]);
+        }else{
+            return Util.makeEnv();
+        }		
+	}
      
 
 
