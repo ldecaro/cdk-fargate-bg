@@ -75,7 +75,7 @@ Deploy Blue/Green fargate microservice:
 
 ```
 cdk bootstrap
-cdk deploy ecs-microservice-pipeline --require-approval never
+cdk deploy ecs-microservice-toolchain --require-approval never
 ```
 
 - Cross-Acccount
@@ -84,10 +84,10 @@ cdk bootstrap aws://987654321098/us-east-1
 cdk bootstrap aws://123456789012/us-east-1
 
 #cross-account with onle Beta stage in the remote account
-cdk deploy ecs-microservice-pipeline -c beta=12345678910/us-east-1 --require-approval never
+cdk deploy ecs-microservice-toolchain -c beta=12345678910/us-east-1 --require-approval never
 
 #cross-account  with alpha and beta in remote accounts
-cdk deploy ecs-microservice-pipeline -c alpha=12346787901/us-east-1 -c beta=987654321098/us-east-1 --require-approval never
+cdk deploy ecs-microservice-toolchain -c alpha=12346787901/us-east-1 -c beta=987654321098/us-east-1 --require-approval never
 ```
 
 It creates an ECS Cluster, deploys the microservice using ECR, creates the CodeCommit repository and a minimal Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: *CodeDeployDefault.ECSLinear10PercentEvery1Minutes*.
@@ -111,8 +111,8 @@ aws s3 rb s3://ecs-microservice-git-gitseedbucket12345678-1234567890123
 
 - Similarly, delete the S3 bucket used to store the pipeline artifacts. Bucket name should be similar to the one from the example below:
 ```
-aws s3 rm --recursive s3://ecs-microservice-pipelineeartifactsbucket12345678901234567890
-aws s3 rb s3://ecs-microservice-pipelineeartifactsbucket12345678901234567890
+aws s3 rm --recursive s3://ecs-microservice-toolchaineartifactsbucket12345678901234567890
+aws s3 rb s3://ecs-microservice-toolchaineartifactsbucket12345678901234567890
 ```
 
 The pipeline creates the ECS Stack and not CDK directly. Destroying using the CDK won't destroy the ECSStack therefore it needs to be manually deleted directly from AWS CloudFormation. In case of a multi-account deployment, it needs to be deleted from the _target account_.  This also prevents the ECS Fargate service from being accidentally deleted. All other infrastructure stacks (git, pipeline, service) can be destroyed using a single command:
@@ -123,7 +123,7 @@ cdk destroy --all
 
 ## Testing 
 
-When the pipeline reaches the latest action of the Deploy stage, the application will become acessible for the first time. You can test the application by using the public URL from the application load balancer. This URL is visible in the Output tab of the CloudFormation stack named `Deploy-my-microservice-ecs`. Once you access the application on port 80, it will show a hello-world screen. In CodeDeploy, you can see the details of the deployment listed in the Deployments menu. The image below shows how it looks like:
+When the pipeline reaches the latest action of the Deploy stage, the application will become acessible for the first time. You can test the application by using the public URL from the application load balancer. This URL is visible in the Output tab of the CloudFormation stack named `ecs-microservice-infra-[alpha|beta]`. Once you access the application on port 80, it will show a hello-world screen. In CodeDeploy, you can see the details of the deployment listed in the Deployments menu. The image below shows how it looks like:
 
 <img src="/imgs/CodeDeployDeployment.png" width=80%>
 
