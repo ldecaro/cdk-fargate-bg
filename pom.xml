@@ -179,7 +179,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib</classpathPrefix>
-                            <mainClass>com.example.Main</mainClass>
+                            <mainClass>com.example.api.runtime.Main</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Class-Path>lib/*</Class-Path>
@@ -211,7 +211,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.example.cdk.Main</mainClass>
+                    <mainClass>com.example.Main</mainClass>
                 </configuration>
             </plugin>              
         </plugins>

@@ -1,9 +1,9 @@
-package com.example;
+package com.example.api.runtime;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
-import com.example.cdk.Util;
+import com.example.Util;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -16,14 +16,15 @@ import jakarta.ws.rs.core.MediaType;
 @Path("/")
 public class HelloWorldResource {
 
-    private Util util = new Util();
-    private String html =   null;
+    private static Util util = new Util();
+    private static String html =   null;
 
-    public HelloWorldResource(){
-        if( html == null ){
-            html = util.getFile("com/example/home.html");
-        }
+    static{
+        html = util.getFile("com/example/api/runtime/home.html");
     }
+
+    public HelloWorldResource(){}
+    
     /**
      * Method handling HTTP GET requests. The returned object will be sent
      * to the client as "text/plain" media type.

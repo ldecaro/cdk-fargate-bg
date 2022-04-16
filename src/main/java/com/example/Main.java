@@ -1,95 +1,54 @@
 package com.example;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.URI;
-import java.net.UnknownHostException;
-
-import org.glassfish.grizzly.http.server.HttpHandler;
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.server.ServerProperties;
-import org.glassfish.jersey.server.TracingConfig;
-
-import jakarta.ws.rs.core.UriBuilder;
-import jakarta.ws.rs.ext.RuntimeDelegate;
+import software.amazon.awscdk.App;
+import software.amazon.awscdk.Environment;
+import software.amazon.awscdk.StackProps;
 
 /**
- * Microservice implemented using a lightweight HTTP server bundled in JDK.
- *
- * @author Luiz Decaro
+ * This reference pipeline deploys a greeting microservice into an ECS Fargate cluster using
+ * AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. It is possible to create ECS environments
+ * using one or more accounts depending on the use of Application or CrossAccountApplication.
  */
-public class Main extends ResourceConfig{
-	
+public class Main {
 
-	public Main () {
+    public static void main(String args[]) throws Exception{
 
-        // Tracing support.
-        property(ServerProperties.TRACING, TracingConfig.ON_DEMAND.name());
-	}
-		
-    /**
-     * Starts the lightweight HTTP server serving the JAX-RS application.
-     *
-     * @return new instance of the lightweight HTTP server
-     * @throws IOException
-     */
-    static HttpServer startServer() throws IOException {    
+        App  app = new App();
 
-        // create a handler wrapping the JAX-RS application
-        HttpHandler handler = RuntimeDelegate.getInstance().createEndpoint(new JaxRsApplication(), HttpHandler.class);
-        
-        // create a new server listening at port 8080
-        final HttpServer server = GrizzlyHttpServerFactory.createHttpServer(getBaseURI(), true);
-        server.getServerConfiguration().addHttpHandler(handler);
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                server.shutdownNow();
-            }
-        }));
-
-        // start the server
-        server.start();
-
-        return server;
-    }
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-    	
-    	
-        System.out.println("\"Hello-World\" Service");
-
-        startServer();
-
-        System.out.println("Application started.\n"
-                + "Try accessing " + getBaseURI() + " in the browser.\n"
-                + "Hit ^C to stop the application...");
-
-        Thread.currentThread().join();
-    }
-
-    private static int getPort(int defaultPort) {
-        final String port = System.getProperty("jersey.config.test.container.port");
-        if (null != port) {
-            try {
-                return Integer.parseInt(port);
-            } catch (NumberFormatException e) {
-                System.out.println("Value of jersey.config.test.container.port property"
-                        + " is not a valid positive integer [" + port + "]."
-                        + " Reverting to default [" + defaultPort + "].");
-            }
+        String appName = (String)app.getNode().tryGetContext("appName");
+        if( appName == null || "".equals(appName.trim()) || "undefined".equals(appName)){
+            appName = "ecs-microservice";
         }
-        return defaultPort;
-    }
 
-    /**
-     * Gets base {@link URI}.
-     *
-     * @return base {@link URI}.
-     */
-    public static URI getBaseURI() throws UnknownHostException {
-        return UriBuilder.fromUri("http://"+InetAddress.getLocalHost().toString().substring(0,InetAddress.getLocalHost().toString().indexOf("/")+1)).port(getPort(8080)).build();
+        //if necessary, pack directory to upload
+        final String buildNumber = System.getenv("CODEBUILD_BUILD_NUMBER");
+        Boolean IS_CREATING  =   buildNumber == null ? Boolean.TRUE : Boolean.FALSE;
+        if( IS_CREATING ){
+            Util.createSrcZip(appName);
+        }
+
+        Environment envToolchain =   Util.makeEnv();
+        System.out.println("Toolchain env: "+envToolchain.getAccount()+"/"+envToolchain.getRegion());
+
+        //deploying the stacks...                                 
+        Repository git    =   new Repository(app, 
+            appName+"-git", 
+            appName,
+            IS_CREATING,
+            StackProps.builder()
+                .env(envToolchain)
+                .terminationProtection(Boolean.FALSE)
+                .build());
+
+        new Toolchain(app, 
+            appName+"-toolchain", 
+            ToolchainStackProps.builder()
+                .appName(appName)
+                .env(envToolchain)
+                .gitRepo(git.getGitRepository())
+                .build());  
+
+
+        app.synth();
     }
 }

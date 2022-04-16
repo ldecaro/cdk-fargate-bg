@@ -1,4 +1,4 @@
-package com.example.cdk;
+package com.example;
 
 import java.util.Arrays;
 
@@ -10,7 +10,6 @@ import software.amazon.awscdk.services.codecommit.CfnRepository;
 import software.amazon.awscdk.services.codecommit.CfnRepository.CodeProperty;
 import software.amazon.awscdk.services.codecommit.CfnRepository.S3Property;
 import software.amazon.awscdk.services.codecommit.IRepository;
-import software.amazon.awscdk.services.codecommit.Repository;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.BucketEncryption;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
@@ -18,11 +17,11 @@ import software.amazon.awscdk.services.s3.deployment.ISource;
 import software.amazon.awscdk.services.s3.deployment.Source;
 import software.constructs.Construct;
 
-public class Git extends Stack {
+public class Repository extends Stack {
     
     private IRepository gitRepo =   null;
     
-    public Git(Construct scope, String id, String appName, final Boolean IS_CREATING, StackProps props){
+    public Repository(Construct scope, String id, String appName, final Boolean IS_CREATING, StackProps props){
         
         super(scope, id, props);
 
@@ -41,7 +40,7 @@ public class Git extends Stack {
                 .build();                                        
         }
 
-		IRepository gitRepo = Repository.Builder.create(this, "CodeCommitRepository")
+		IRepository gitRepo = software.amazon.awscdk.services.codecommit.Repository.Builder.create(this, "CodeCommitRepository")
             .repositoryName(appName)
             .build();
 							

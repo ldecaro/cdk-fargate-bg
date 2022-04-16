@@ -1,7 +1,7 @@
-package com.example.cdk.application;
+package com.example.api.infrastructure;
 
-import com.example.cdk.Toolchain.StageConfig;
-import com.example.cdk.Toolchain.StageConfig.EnvType;
+import com.example.DeploymentConfig;
+import com.example.DeploymentConfig.EnvType;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
@@ -29,7 +29,7 @@ public class LocalService extends Stack implements Service {
         .build();
     }
 
-    public StageConfig getDeploymentConfig(){
-        return new StageConfig(this.deploymentConfig, env, envType);
+    public DeploymentConfig getDeploymentConfig(){
+        return new DeploymentConfig(this.deploymentConfig, env, envType);
     }
 }
