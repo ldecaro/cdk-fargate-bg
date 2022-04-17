@@ -1,30 +1,26 @@
 # Blue/Green Deployments to Amazon ECS using AWS CDK and AWS CodeDeploy
 
-An implementation of a basic microservice running in ECS Fargate deployed using AWS CodePipeline, AWS CodeBuild, AWS CodeDeploy using a Blue/Green deployment type in a **single** or **cross-account** scenario.
+A reference pipeline using AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. Works in **single** or **cross-account** scenario.
 
 ![Architecture](/imgs/stacks.png)
 
-It uses a set of 4 stacks: Git, Pipeline, Infrastructure and Application. To achieve the desired results, it implements an *Inversion-of-Control (IoC)*, taking away the ownership from the Infrastructure stack to deploy new versions of the app to make AWS CodeDeploy responsible for deploying the Green ECS Fargate task. 
+A single CDK command, deploys a pipeline and a git repository. The pipeline runs and deploys the Api and a Service using ECS Fargate. Api stack creates the ECS Cluster and deploys the **blue** version of the service. Using an *Inversion-of-Control (IoC)* the Deploy stage of the pipeline will use CodeDeploy to deploy the **green** service and all subsequent versions.
 
-As a result, it allows updates to the Infrastructure stack and to the application all in the same commit. This code can be extended to support the deployment of other infrastructure components if necessary. In this case, the Deploy stage of the pipeline can be updated to deploy another stack or custom components can be added into the existing Infrastructure stack.
+This strategy will allow updates to the Api and the Service stacks in a single commit. The IoC is implemented using a Self-Mutating CDK Pipeline that identifies changes to the pipeline, infrastructure or service. When this happens, it self-mutates to deploy these changes prior to executing the Blue/Green deployment. 
 
-This application uses a multi-stack approach, what can be considered to be more flexible than the approach using CloudFormation Hooks to implement a similar use case. It adds the ability to *Stop a Deployment* or *Stop and Rollback Deployment*, available directly from the console of AWS CodeDeploy.
+The Repository stack deploys a git repository that hosts a Java based microservice and CDK code that can be changed to update the Toolchain, the Api or the Service.
+ <!-- I created a tarball with a single HTML container running HTTPD with a total size around 20KB but, for this reference application, I decided to create a nginx container running a single page Blue app. The size of the container of the Blue app is around 20MB and this should not impact the time the pipeline takes to execute. If this is a problem for you, you can easily create a single HTML page container with around 20KB of size and change the Infrastructure stack to load the tarball every time it executes. -->
 
-The Inversion-of-Control (IoC) is implemented with the use of CodeDeploy to deploy the Green application and subsequent versions of it. This is enabled with the use of a Self-Mutating CDK Pipeline that identifies changes in the infrastructure and application associated with the pipeline. When this happens, it self-mutates to deploy these changes prior to executing the Blue/Green deployment. 
+This reference pipeline can be particularly useful in cases when:
 
-As a convenience, the Git stack is triggered as a dependency from the Pipeline stack. This creates a self-contained solution for deploying a new microservice from scratch. The Pipeline runs and builds the application, self-mutates and executes the infrastructure stack. When the infrastructure (ECS) is created, it deploys the Blue Application. We must make sure the Blue application is never changed from this point forward. This is a requirement, because we want to implement an IoC and have CodeDeploy deploying versions of the same application. Initially, I created a tarball with a single HTML container running HTTPD with a total size around 20KB but, for this reference application, I decided to create a nginx container running a single page Blue app. The size of the container of the Blue app is around 20MB and this should not impact the time the pipeline takes to execute. If this is a problem for you, you can easily create a single HTML page container with around 20KB of size and change the Infrastructure stack to load the tarball every time it executes.
-
-This reference application can be particularly useful in cases when:
-
-- Application has too many tests, including funcional tests and you need the pipeline to run through all these tests just to make a change into the underlying infrastructure; Using the approach from this reference application changes can be executed in the infra and in the application in the same commit avoiding the requirement for external coordination of events;
-- Your infrastructure ends up being more than just the ECS and the solution using Hooks might not be a fit for your use case; 
-- You want to keep changes to the infrastructure and application within the same "package" or commit;
-- You need to use CDK with a nested stack;
-- You have any other requirement that is listed under the [considerations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations) for implementing Blue/Green using CloudFormation Hooks;
+- Changes need to be executed in the infrastructure and in the application in the same commit without external coordination of events. This is particularly useful in applications with an extense integration phase;
+- Infrastructure ends up being more than just the ECS and the solution using Hooks might not be a fit for your use case;
+- There is a need to use CDK with a nested stack;
+- There is a requirement to use one the features not available using CloudFormation Hooks  listed under [considerations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations).
 
 ***Why CodeDeploy?***
 
-If you are deploying containers at an enterprise level you might need one of these capabilities:
+Deploying containers at an enterprise level might require these capabilities:
 
 - Stop an ongoing deployment;
 - Stop and Rollback an ongoing deployment;
@@ -90,9 +86,9 @@ cdk deploy ecs-microservice-toolchain -c beta=12345678910/us-east-1 --require-ap
 cdk deploy ecs-microservice-toolchain -c alpha=12346787901/us-east-1 -c beta=987654321098/us-east-1 --require-approval never
 ```
 
-It creates an ECS Cluster, deploys the microservice using ECR, creates the CodeCommit repository and a minimal Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: *CodeDeployDefault.ECSLinear10PercentEvery1Minutes*.
+<!-- It creates an ECS Cluster, deploys the service using ECR, creates the CodeCommit repository and a reference Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: *CodeDeployDefault.ECSLinear10PercentEvery1Minutes*.
 
-When the pipeline is deployed it will build the project and, in the Deploy, stage it will configure CodeDeploy and execute two stacks in parallel: ECSStack and ServiceAssetStack. ECSStack deploys the ECS Fargate Infrastructure including the Blue Application and ServiceAssetStack deploys the Green application in ECR using CDK's DockerImageAsset. Once the ECSStack is deployed and Green application is uploaded into ECR, CodeDeploy is invoked and Blue/Green Deployment takes place.
+When the pipeline is deployed it will build the project and, in the Deploy, stage it will configure CodeDeploy and execute two stacks in parallel: ECSStack and ServiceAssetStack. ECSStack deploys the ECS Fargate Infrastructure including the Blue Application and ServiceAssetStack deploys the Green application in ECR using CDK's DockerImageAsset. Once the ECSStack is deployed and Green application is uploaded into ECR, CodeDeploy is invoked and Blue/Green Deployment takes place. -->
 
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
@@ -115,7 +111,9 @@ aws s3 rm --recursive s3://ecs-microservice-toolchaineartifactsbucket12345678901
 aws s3 rb s3://ecs-microservice-toolchaineartifactsbucket12345678901234567890
 ```
 
-The pipeline creates the ECS Stack and not CDK directly. Destroying using the CDK won't destroy the ECSStack therefore it needs to be manually deleted directly from AWS CloudFormation. In case of a multi-account deployment, it needs to be deleted from the _target account_.  This also prevents the ECS Fargate service from being accidentally deleted. All other infrastructure stacks (git, pipeline, service) can be destroyed using a single command:
+<!-- It's the pipeline who deploys the Api stack. Destroying using the CDK destroy won't destroy the Api and service stacks, therefore it needs to be manually deleted directly from AWS CloudFormation. In case of a multi-account deployment, the service and api stacks need to be deleted from the _target account_.  This also prevents the ECS Fargate service from being accidentally deleted. All other infrastructure stacks (git, toolchain, service) can be destroyed using a single command: -->
+
+- Destroy Toolchain and Git stacks. The service and api stacks where created by the pipeline, thererfoe they need to be deleted using cli or the console.
 
 ```
 cdk destroy --all
