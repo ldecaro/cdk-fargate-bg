@@ -5,9 +5,12 @@ import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
 /**
- * This reference pipeline deploys a greeting microservice into an ECS Fargate cluster using
- * AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. It is possible to create ECS environments
- * using one or more accounts depending on the use of Application or CrossAccountApplication.
+ * The application includes a Git repository and a Toolchain. The Toolchain 
+ * deploys the Greeting microservice into multiple environments using
+ * AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. It supports
+ * single-account or cross-account deployment models.
+ * 
+ * ./cdk-bootstrap-deploy-to.sh # before running the application.
  */
 public class Main {
 
@@ -15,10 +18,7 @@ public class Main {
 
         App  app = new App();
 
-        String appName = (String)app.getNode().tryGetContext("appName");
-        if( appName == null || "".equals(appName.trim()) || "undefined".equals(appName)){
-            appName = "ecs-microservice";
-        }
+        String appName = Util.appName();
 
         //if necessary, pack directory to upload
         final String buildNumber = System.getenv("CODEBUILD_BUILD_NUMBER");
@@ -27,7 +27,7 @@ public class Main {
             Util.createSrcZip(appName);
         }
 
-        Environment envToolchain =   Util.makeEnv();
+        Environment envToolchain =   Util.toolchainEnv();
         System.out.println("Toolchain env: "+envToolchain.getAccount()+"/"+envToolchain.getRegion());
 
         //deploying the stacks...                                 
@@ -46,8 +46,14 @@ public class Main {
                 .appName(appName)
                 .env(envToolchain)
                 .gitRepo(git.getGitRepository())
-                .build());  
+                .build());
 
+        new BootstrapCodeDeploy(app, 
+            StackProps.builder()
+                .env(Util.makeEnv())
+                .stackName("AWSCodeDeployBootstrap")
+                .description("This stack includes resources that are used by AWS CodeDeploy")
+                .build());
 
         app.synth();
     }

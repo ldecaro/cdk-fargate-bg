@@ -1,7 +1,14 @@
 package com.example.api.infrastructure;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.constructs.Construct;
 
 public class Api extends Stack {
@@ -13,6 +20,11 @@ public class Api extends Stack {
         super(scope, id, props);
         String appName          = props.getAppName();
         String strEnvType       =   id.split("-")[id.split("-").length-1].toLowerCase();
+
+        DockerImageAsset.Builder
+        .create(this, appName+"-container")
+        .directory("./target")//getPathDockerfile())
+        .build();
 
         Network ecsNetwork = new Network(this, appName+"-api-network", appName );
 
@@ -63,4 +75,23 @@ public class Api extends Stack {
     public String getTgGreenName() {
         return helper.getTgGreenName();
     } 
+
+    /**
+     * Copy Dockerfile from /runtime directory to /target
+     */
+    void prepareDockerfile(){
+
+        if(! new File("./target/Dockerfile").exists() ){
+
+            String dest = "./target/Dockerfile";
+            String orig = "./target/classes/"+this.getClass().getName().substring(0, this.getClass().getName().lastIndexOf(".")).replace(".", "/");
+            orig += "/../runtime/Dockerfile";
+
+            try{
+                Files.copy(Paths.get(orig), Paths.get(dest), StandardCopyOption.REPLACE_EXISTING);
+            }catch(IOException ioe){
+                System.out.println("Could not copy Dockerfile from Green app from: "+orig+" to "+dest+"Msg: "+ioe.getMessage());
+            }    
+        }    
+    }    
 }

@@ -13,7 +13,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <cdk.version>2.15.0</cdk.version>
+        <cdk.version>2.20.0</cdk.version>
     </properties>
 
   <dependencies>
@@ -147,12 +147,12 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${basedir}/target</outputDirectory>
+                            <outputDirectory>${basedir}/target/classes</outputDirectory>
                             <resources>
                                 <resource>
                                     <directory>${basedir}</directory>
                                     <includes>
-                                        <include>Dockerfile</include>
+                                        <include>app.properties</include>
                                     </includes>
                                 </resource>
                             </resources>
@@ -211,7 +211,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.example.Main</mainClass>
+                    <mainClass>com.example.Main</mainClass>            
                 </configuration>
             </plugin>              
         </plugins>

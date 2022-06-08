@@ -9,26 +9,22 @@ import software.amazon.awscdk.StackProps;
 
 public class ApiStackProps implements StackProps {
 
-    String appName              =   null;
-    String deploymentConfig     =   null;
-    Environment env             =   null;
-    Map<String,String> tags     =   null;
-    Boolean terminationProtection   =   Boolean.FALSE;
-    String stackName    =   null;
+    private String appName              =   null;
+    private String deploymentConfig     =   null;
+    private Environment env             =   null;
+    private Map<String,String> tags     =   null;
+    private Boolean terminationProtection   =   Boolean.FALSE;
+    private String stackName    =   null;
+    private String description  =   null;
 
     @Override
     public @Nullable Map<String, String> getTags() {
-        return StackProps.super.getTags();
+        return tags;
     }
 
     @Override
     public @Nullable Boolean getTerminationProtection() {
         return this.terminationProtection;
-    }
-
-    @Override
-    public @Nullable String getDescription() {
-        return "ECSStack. Application: "+getAppName();
     }
 
     public String getAppName(){
@@ -46,16 +42,23 @@ public class ApiStackProps implements StackProps {
     @Override
     public String getStackName(){
         return stackName;
-    }        
+    }     
+    @Override
+    public String getDescription(){
+        return description;
+    }
 
 
-    public ApiStackProps(String appName, String deploymenConfig, Environment env, Map<String,String> tags, Boolean terminationProtection, String stackName){
+    public ApiStackProps(String appName, String deploymenConfig, Environment env, Map<String,String> tags, Boolean terminationProtection, String stackName, String description){
         this.appName = appName;
         this.env = env;
         this.tags = tags;
+        if(StackProps.super.getTags()!=null)
+            this.tags.putAll(StackProps.super.getTags());
         this.terminationProtection = terminationProtection;
         this.deploymentConfig = deploymenConfig;
         this.stackName  =   stackName;
+        this.description    =   description;
     }
 
     public static Builder builder(){
@@ -70,6 +73,7 @@ public class ApiStackProps implements StackProps {
         private Map<String,String> tags =   null;
         private Boolean terminationProtection = Boolean.FALSE;
         private String stackName        =   null;
+        private String description      =   null;
 
         public Builder appName(String appName){
             this.appName = appName;
@@ -99,10 +103,15 @@ public class ApiStackProps implements StackProps {
         public Builder stackName(final String stackName){
             this.stackName = stackName;
             return this;
-        }            
+        } 
+        
+        public Builder description(final String description){
+            this.description = description;
+            return this;
+        }
 
         public ApiStackProps build(){
-            return new ApiStackProps(appName, deploymentConfig, env, tags, terminationProtection, stackName);
+            return new ApiStackProps(appName, deploymentConfig, env, tags, terminationProtection, stackName, description);
         }
     }
 }   

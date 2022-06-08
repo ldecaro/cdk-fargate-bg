@@ -2,8 +2,10 @@ package com.example;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
@@ -13,14 +15,32 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
+import com.example.DeploymentConfig.EnvType;
 
 import software.amazon.awscdk.Environment;
 
 public class Util {
 	
 	public Util() {}
+
+	public static Properties props	=	null;
+	
+	static{
+        InputStream is = null;
+        try {
+            props = new Properties();
+            is = Util.class.getResourceAsStream("/app.properties");
+            props.load(is);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 	
     public String getFile(String filename) {
 		
@@ -54,6 +74,10 @@ public class Util {
         String fileContent	=	new String(bytes);
         return fileContent;
 	}
+
+	public static String getTrustedAccount(){
+		return System.getenv("CDK_DEPLOY_TRUST");
+	}
     
 	public static Environment makeEnv(){
 		return Util.makeEnv(null,null);
@@ -61,6 +85,9 @@ public class Util {
 
     // Helper method to build an environment
     public static Environment makeEnv(String account, String region) {
+
+		account = (account == null) ? System.getenv("CDK_DEPLOY_ACCOUNT") : account;
+        region = (region == null) ? System.getenv("CDK_DEPLOY_REGION") : region;
         account = (account == null) ? System.getenv("CDK_DEFAULT_ACCOUNT") : account;
         region = (region == null) ? System.getenv("CDK_DEFAULT_REGION") : region;
 		//System.out.println("Using Account-Region: "+ account+"-"+region);
@@ -70,7 +97,7 @@ public class Util {
                 .build();
     }
 
-	public static Environment makeEnv(String env){
+	private static Environment makeEnv(String env){
 
         if( env != null && !"undefined".equals(env) && !"".equals(env.trim())){
             return Util.makeEnv(env.split("/")[0], env.split("/")[1]);
@@ -78,8 +105,74 @@ public class Util {
             return Util.makeEnv();
         }		
 	}
-     
 
+	public static Environment getEnv(EnvType type){
+
+		if(Util.props == null){
+			loadProperties();
+		}
+
+		switch(type){
+
+			case ALPHA:{
+				return Util.makeEnv(props.getProperty(EnvType.ALPHA.toString().toLowerCase()));
+			}
+			case BETA:{
+				return Util.makeEnv(props.getProperty(EnvType.BETA.toString().toLowerCase()));
+			}
+			case GAMMA:{
+				return Util.makeEnv(props.getProperty(EnvType.GAMMA.toString().toLowerCase()));
+			}
+			default:{
+				System.out.println("Util.getEnv is trying to access an environment that doesn't exist");
+				throw new IllegalArgumentException("Trying to access an environment that doesn't exist: "+type);
+			}
+		}
+	}
+
+	public static Environment toolchainEnv(){
+
+		if(Util.props == null){
+			loadProperties();
+		}
+		return Util.makeEnv(Util.props.getProperty("toolchain"));
+	}
+
+	public static String appName(){
+
+		if(Util.props == null ){
+			loadProperties();
+		}
+		return Util.props.getProperty("appName");
+	}
+
+	public static Boolean addProperty(String property, String value){
+
+		Util.props.put(property, value);
+		try{
+			Util.props.store(new FileOutputStream("app.properties"), null);
+			return true;
+		}catch(IOException e){
+			System.out.println("Could not save property "+property+" to file app.properties. Msg: "+property);
+			return false;
+		}
+	}
+     
+	private static void loadProperties() {
+
+		Util.props = new Properties();
+		try{
+			Util.props.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("app.properties"));
+		}catch(IOException ioe){
+			System.out.println("Could not read the app.properties file. Msg: "+ioe.getMessage());
+			System.out.println("Abandoning...");
+			System.exit(0);
+		}catch(IllegalArgumentException ie){
+			System.out.println("Could not parse the app.properties file. Msg: "+ie.getMessage());
+			System.out.println("Abandoning...");
+			System.exit(0);
+		}
+	}
 
 	public static void zipDirectory(ZipOutputStream zos, File fileToZip, String parentDirectoryName, final Boolean REMOVE_ROOT) throws Exception {
 

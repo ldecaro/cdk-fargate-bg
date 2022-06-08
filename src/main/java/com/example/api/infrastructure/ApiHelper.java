@@ -92,15 +92,15 @@ public class ApiHelper {
         )).build();        
     }
 
-    FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, String serviceName, Role taskRole, Role executionRole, String strEnvType ){
+    FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, Role taskRole, Role executionRole, String strEnvType ){
 
-        FargateService service  =   FargateService.Builder.create(scope, serviceName+"-fargateSvc")
+        FargateService service  =   FargateService.Builder.create(scope, appName+"-fargateSvc")
             .desiredCount(1)
             .cluster(cluster)
-            .serviceName(serviceName)
+            .serviceName(appName)
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
             .securityGroups(Arrays.asList(this.sg))
-            .taskDefinition(createECSTask(appName, new HashMap<String,String>(), serviceName, taskRole, executionRole))
+            .taskDefinition(createECSTask(appName, new HashMap<String,String>(), appName, taskRole, executionRole))
             .build();
   
         ApplicationListener listener = lb.getListeners().get(0);
@@ -140,7 +140,7 @@ public class ApiHelper {
             .image(ContainerImage.fromDockerImageAsset(        
                 DockerImageAsset.Builder
                     .create(scope, appName+"-container")
-                    .directory("./blue-green/blue-app")
+                    .directory(getPathDockerfile())
                     .build()))
             .essential(Boolean.TRUE)
             .portMappings(Arrays.asList(
@@ -153,7 +153,16 @@ public class ApiHelper {
             .build());            
 
         return taskDef;
-    }     
+    }   
+    
+    private String getPathDockerfile(){
+
+        String path = "./target/classes/";
+        path += this.getClass().getName().substring(0, this.getClass().getName().lastIndexOf(".")).replace(".", "/");
+        path += "/../runtime-bootstrap";
+
+        return path;
+    }
 
     ApplicationLoadBalancer createALB(final String appName, final String serviceName, final Cluster cluster, final String strEnvType){
         
@@ -224,8 +233,8 @@ public class ApiHelper {
             .runtime(software.amazon.awscdk.services.lambda.Runtime.PYTHON_3_9)
             .timeout(Duration.seconds(870))
             .memorySize(128)
-            .code(Code.fromAsset("lambda"))
-            .handler("lambda_function.lambda_handler")
+            .code(Code.fromAsset("codedeploy"))
+            .handler("configurator.lambda_handler")
             .environment(lambdaEnv)
             .logRetention(RetentionDays.ONE_MONTH)
             .role(customLambdaRole)

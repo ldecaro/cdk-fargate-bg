@@ -1,14 +1,14 @@
 # Blue/Green Deployments to Amazon ECS using AWS CDK and AWS CodeDeploy
 
-A reference pipeline using AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. Works in **single** or **cross-account** scenario.
+A CI/CD pipeline using CDK Pipelines. Deploys a Java based microservice with AWS CodeDeploy using Blue/Green or Canary. Works in **single** or **cross-account** scenario.
 
-![Architecture](/imgs/stacks.png)
+![Architecture](/imgs/general.png)
 
-A single CDK command, deploys a pipeline and a git repository. The pipeline runs and deploys the Api and a Service using ECS Fargate. Api stack creates the ECS Cluster and deploys the **blue** version of the service. Using an *Inversion-of-Control (IoC)* the Deploy stage of the pipeline will use CodeDeploy to deploy the **green** service and all subsequent versions.
+A CDK *Toolchain* stack deploys a self-mutating pipeline and *Repository* stack deploys a git repository using AWS CodeCommit. The pipeline runs and deploys the *Api* stack in different stages (Alpha and Beta). The Blue **blue** version of the application is deployed with the Api stack using AWS CloudFormation. The **green** version of the application is deployed using AWS CodeDeploy.
 
-This strategy will allow updates to the Api and the Service stacks in a single commit. The IoC is implemented using a Self-Mutating CDK Pipeline that identifies changes to the pipeline, infrastructure or service. When this happens, it self-mutates to deploy these changes prior to executing the Blue/Green deployment. 
+This strategy will allow updates to the Api and infrastructure in a single commit. The Self-Mutating Pipeline makes it easy to add or remove stages that can deploy the different versions of the same application in a single or cross account scenario. When a change to the pipeline is identified, it self-mutates during the *Update Pipeline* stage, prior to executing the Deploy stages.
 
-The Repository stack deploys a git repository that hosts a Java based microservice and CDK code that can be changed to update the Toolchain, the Api or the Service.
+The Repository stack deploys a git repository that hosts a Java based microservice and CDK code that can be changed to update the Toolchain or the Api.
  <!-- I created a tarball with a single HTML container running HTTPD with a total size around 20KB but, for this reference application, I decided to create a nginx container running a single page Blue app. The size of the container of the Blue app is around 20MB and this should not impact the time the pipeline takes to execute. If this is a problem for you, you can easily create a single HTML page container with around 20KB of size and change the Infrastructure stack to load the tarball every time it executes. -->
 
 This reference pipeline can be particularly useful in cases when:
@@ -16,7 +16,7 @@ This reference pipeline can be particularly useful in cases when:
 - Changes need to be executed in the infrastructure and in the application in the same commit without external coordination of events. This is particularly useful in applications with an extense integration phase;
 - Infrastructure ends up being more than just the ECS and the solution using Hooks might not be a fit for your use case;
 - There is a need to use CDK with a nested stack;
-- There is a requirement to use one the features not available using CloudFormation Hooks  listed under [considerations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations).
+- There is a requirement to use one of the features not available using CloudFormation Hooks and listed under [considerations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations).
 
 ***Why CodeDeploy?***
 
@@ -65,30 +65,74 @@ Download the github project and build project locally:
 ```
 ## Deploy
 
-Deploy Blue/Green fargate microservice:
+The pipeline can be deployed in the following scenarios in four simple steps:
 
-- Single Account
+- **Single Account**
 
+![Architecture](/imgs/single-account.png)
+
+First, we need to bootstrap CDK in the account where the Toolchain and Api will be deployed. **Even if the CDK has already been bootstrapped in the account we need to start by running the script below.**
+
+
+1. Define account
 ```
-cdk bootstrap
+export TOOLCHAIN_ACCT=111111111111
+```
+
+2. Bootstrap account
+```
+./cdk-bootstrap-deploy-to.sh $TOOLCHAIN_ACCT us-east-1
+```
+3. Configure the parameter file with the correct environment variables
+```
+echo "toolchain=$TOOLCHAIN_ACCT/us-east-1" >> app.properties
+echo "alpha=$TOOLCHAIN_ACCT/us-east-1" >> app.properties
+echo "beta=$TOOLCHAIN_ACCT/us-east-1" >> app.properties
+```
+4. Deploy the Toolchain and Repository stacks
+```
 cdk deploy ecs-microservice-toolchain --require-approval never
 ```
 
-- Cross-Acccount
+- **Cross-Acccount**
+
+![Architecture](/imgs/cross-account.png)
+
+1. Define accounts
 ```
-cdk bootstrap aws://987654321098/us-east-1
-cdk bootstrap aws://123456789012/us-east-1
+export TOOLCHAIN_ACCT=111111111111
+export ALPHA_ACCT=222222222222
+export BETA_ACCT=333333333333
+```
 
+2. Bootstrap accounts and add the AWS CodeDeploy cross-account role in the remote accounts with the correct trust
+
+```
+./cdk-bootstrap-deploy-to.sh $TOOLCHAIN_ACCT us-east-1
+./cdk-bootstrap-deploy-to.sh $ALPHA_ACCT us-east-1 --trust $TOOLCHAIN_ACCT
+./cdk-bootstrap-deploy-to.sh $BETA_ACCT us-east-1 --trust $TOOLCHAIN_ACCT
+```
+
+3. Configure the parameter file with the correct environment variables
+```
+echo "toolchain=$TOOLCHAIN_ACCT/us-east-1" >> app.properties
+echo "alpha=$ALPHA_ACCT/us-east-1" >> app.properties
+echo "beta=$BETA_ACCT/us-east-1" >> app.properties
+```
+
+4. Deploy the Toolchain and Repository stacks
+```
 #cross-account with onle Beta stage in the remote account
-cdk deploy ecs-microservice-toolchain -c beta=12345678910/us-east-1 --require-approval never
-
-#cross-account  with alpha and beta in remote accounts
-cdk deploy ecs-microservice-toolchain -c alpha=12346787901/us-east-1 -c beta=987654321098/us-east-1 --require-approval never
+cdk deploy ecs-microservice-toolchain --require-approval never
 ```
 
 <!-- It creates an ECS Cluster, deploys the service using ECR, creates the CodeCommit repository and a reference Pipeline. Runs the Pipeline to execute a BlueGreen deployment using deployment configuration: *CodeDeployDefault.ECSLinear10PercentEvery1Minutes*.
 
 When the pipeline is deployed it will build the project and, in the Deploy, stage it will configure CodeDeploy and execute two stacks in parallel: ECSStack and ServiceAssetStack. ECSStack deploys the ECS Fargate Infrastructure including the Blue Application and ServiceAssetStack deploys the Green application in ECR using CDK's DockerImageAsset. Once the ECSStack is deployed and Green application is uploaded into ECR, CodeDeploy is invoked and Blue/Green Deployment takes place. -->
+
+- **Pipeline**
+
+By default, the resulting pipeline will be created with two deployment stages: Alpha and Beta. This pipeline can be modified so that new deployment stages can easily be added or removed. For convenience, the Gamma stage has already been coded and, to enable it, uncomment code inside the app.properties file.
 
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >

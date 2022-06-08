@@ -28,7 +28,7 @@ public class ToolchainStackProps implements StackProps {
 
     @Override
     public @Nullable String getDescription() {
-        return "PipelineStack of the app "+getAppName();
+        return "Toolchain of microservice: "+getAppName();
     }
 
     public String getAppName(){

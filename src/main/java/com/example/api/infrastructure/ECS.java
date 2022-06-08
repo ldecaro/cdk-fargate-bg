@@ -41,7 +41,6 @@ public class ECS extends Construct{
             appName, 
             cluster, 
             alb, 
-            appName, 
             taskRole,
             taskExecutionRole, 
             strEnvType);

@@ -18,6 +18,7 @@ class Deployment extends Stage {
                 .appName(appName)
                 .deploymentConfig(deploymentConfig.getDeployConfig())
                 .stackName(appName+"-api-"+deploymentConfig.getEnvType().toString().toLowerCase())
+                .description("Application "+appName+"-"+deploymentConfig.getEnvType().getType().toLowerCase())
                 .env(deploymentConfig.getEnv())
                 .build());
     }
