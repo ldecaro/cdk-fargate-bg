@@ -69,10 +69,11 @@ The pipeline can be deployed in the following scenarios in four simple steps:
 
 - **Single Account**
 
-![Architecture](/imgs/single-account.png)
+![Architecture](/imgs/arch.png)
 
-First, we need to bootstrap CDK in the account where the Toolchain and Api will be deployed. **Even if the CDK has already been bootstrapped in the account we need to start by running the script below.**
+First, bootstrap CDK in the account where the Toolchain and Api will be deployed. **Even if the CDK has already been bootstrapped in the account we need to start by running the script below (one-time).**
 
+At the moment, only single-region deployment is supported.
 
 1. Define account
 ```
@@ -97,6 +98,8 @@ cdk deploy ecs-microservice-toolchain --require-approval never
 - **Cross-Acccount**
 
 ![Architecture](/imgs/cross-account.png)
+
+First, bootstrap CDK in the account where the Toolchain and Api will be deployed. **Even if the CDK has already been bootstrapped in the account we need to start by running the script below (one-time).**
 
 1. Define accounts
 ```

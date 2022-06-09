@@ -48,7 +48,7 @@ public class BootstrapCodeDeploy extends Stack {
                             PolicyStatement.Builder.create()
                             .effect(Effect.ALLOW)
                             .actions(Arrays.asList("kms:Decrypt", "kms:DescribeKey"))
-                            .resources( Arrays.asList("arn:aws:kms:"+props.getEnv().getRegion()+":"+Util.getTrustedAccount()+":key/*") )
+                            .resources( Arrays.asList("arn:aws:kms:*:"+Util.getTrustedAccount()+":key/*") )
                             .conditions(new HashMap<String,Object>(){{
                                 put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
                                     put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*")); 
