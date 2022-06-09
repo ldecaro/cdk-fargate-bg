@@ -4,7 +4,7 @@ A CI/CD pipeline using CDK Pipelines. Deploys a Java based microservice with AWS
 
 ![Architecture](/imgs/general.png)
 
-A CDK *Toolchain* stack deploys a self-mutating pipeline and *Repository* stack deploys a git repository using AWS CodeCommit. The pipeline runs and deploys the *Api* stack in different stages (Alpha and Beta). The Blue **blue** version of the application is deployed with the Api stack using AWS CloudFormation. The **green** version of the application is deployed using AWS CodeDeploy.
+A CDK *Toolchain* stack deploys a self-mutating pipeline and a *Repository* stack deploys a git repository using AWS CodeCommit. The pipeline runs and deploys the *Api* stack in different stages (Alpha and Beta). The **blue** version of the application is deployed with the Api stack using AWS CloudFormation. The **green** version of the application is deployed using AWS CodeDeploy.
 
 This strategy will allow updates to the Api and infrastructure in a single commit. The Self-Mutating Pipeline makes it easy to add or remove stages that can deploy the different versions of the same application in a single or cross account scenario. When a change to the pipeline is identified, it self-mutates during the *Update Pipeline* stage, prior to executing the Deploy stages.
 
@@ -16,7 +16,7 @@ This reference pipeline can be particularly useful in cases when:
 - Changes need to be executed in the infrastructure and in the application in the same commit without external coordination of events. This is particularly useful in applications with an extense integration phase;
 - Infrastructure ends up being more than just the ECS and the solution using Hooks might not be a fit for your use case;
 - There is a need to use CDK with a nested stack;
-- There is a requirement to use one of the features not available using CloudFormation Hooks and listed under [considerations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations).
+- There is a requirement to use one of the features listed under [considerations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations) when using CloudFormation Hooks.
 
 ***Why CodeDeploy?***
 
@@ -26,7 +26,7 @@ Deploying containers at an enterprise level might require these capabilities:
 - Stop and Rollback an ongoing deployment;
 - Audit an old deployment;
 - Implement governance and control who might be able to rollback a deployment;
-- Rollback to an old version of the same application or microservice. The ability to use the *Redeploy* button might be useful at some point in your journey.
+- Rollback to an old version of the same application or microservice. The ability to use the *Redeploy* button might be useful at some point in your journey (specially if a regulator asks how you rollback a version and who has access to do that).
 
 
 ![Architecture](/imgs/arch.png)

@@ -113,7 +113,7 @@ public class DeploymentConfig extends Stack {
 
             String dest = "./target/Dockerfile";
             String orig = "./target/classes/"+this.getClass().getName().substring(0, this.getClass().getName().lastIndexOf(".")).replace(".", "/");
-            orig += "/../runtime/Dockerfile";
+            orig += "/api/runtime/Dockerfile";
 
             try{
                 Files.copy(Paths.get(orig), Paths.get(dest), StandardCopyOption.REPLACE_EXISTING);
