@@ -35,35 +35,35 @@ public class BootstrapCodeDeploy extends Stack {
             )).build();    
 
 
-        //If cross account we need to explicitly add the statement allowing role to use 
+        //If trust that means there is a cross-region or cross-account environment being set up. 
         //KMS in the toolchain account
         // https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
-        if( isCrossAccount() ){
+        if( isTrust() ){
 
-            crossAccountRole.attachInlinePolicy(
-                
-                    Policy.Builder.create(this, "kms-codepipeline-cross-account")
-                        .policyName("KMSArfifactAWSCodePipeline")
-                        .statements(Arrays.asList(
-                            PolicyStatement.Builder.create()
-                            .effect(Effect.ALLOW)
-                            .actions(Arrays.asList("kms:Decrypt", "kms:DescribeKey"))
-                            .resources( Arrays.asList("arn:aws:kms:*:"+Util.getTrustedAccount()+":key/*") )
-                            .conditions(new HashMap<String,Object>(){{
-                                put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
-                                    put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*")); 
-                                }});
-                            }})
-                            .build()
-                        )).build()
-            );
+            Policy policy = Policy.Builder.create(this, "kms-codepipeline-cross-region-account")
+                .policyName("KMSArfifactAWSCodePipeline")
+                .statements(Arrays.asList(
+                    PolicyStatement.Builder.create()
+                    .effect(Effect.ALLOW)
+                    .actions(Arrays.asList("kms:Decrypt", "kms:DescribeKey"))
+                    .resources( Arrays.asList("arn:aws:kms:*:"+Util.getTrustedAccount()+":key/*") )
+                    .conditions(new HashMap<String,Object>(){{
+                        put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
+                            put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/oolchaintencryptionalias*")); 
+                        }});
+                    }})
+                    .build()
+                )).build();
+
+            crossAccountRole.attachInlinePolicy( policy );
         }
+
         CfnOutput.Builder.create(this, "CrossAccountCodeDeployRole" )
         .description("Cross Account CodeDeploy role created for account: "+props.getEnv().getAccount()+"/"+props.getEnv().getRegion())
         .value(crossAccountRole.getRoleArn());
     }
 
-    private Boolean isCrossAccount(){
+    private Boolean isTrust(){
         return Util.getTrustedAccount()== null? Boolean.FALSE : Boolean.TRUE;
     }
 }
