@@ -16,7 +16,7 @@ public class ECS extends Construct{
     private ApplicationLoadBalancer alb = null;
     private ApiHelper   helper = null;
 
-    public ECS(Construct scope, final String id, final String strEnvType, Network ecsNetwork, ApiStackProps props ){
+    public ECS(Construct scope, final String id, final String strEnvType, Network ecsNetwork, ExampleStackProps props ){
 
         super(scope,id);
 

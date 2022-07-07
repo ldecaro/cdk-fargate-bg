@@ -1,7 +1,7 @@
 package com.example;
 
-import com.example.api.infrastructure.Api;
-import com.example.api.infrastructure.ApiStackProps;
+import com.example.api.infrastructure.Example;
+import com.example.api.infrastructure.ExampleStackProps;
 
 import software.amazon.awscdk.Stage;
 import software.constructs.Construct;
@@ -12,12 +12,12 @@ class Deployment extends Stage {
 
         super(scope, id );
 
-        new Api(this, 
+        new Example(this, 
             appName+"-api-"+deploymentConfig.getEnvType().toString().toLowerCase(), 
-            ApiStackProps.builder()
+            ExampleStackProps.builder()
                 .appName(appName)
                 .deploymentConfig(deploymentConfig.getDeployConfig())
-                .stackName(appName+"-api-"+deploymentConfig.getEnvType().toString().toLowerCase())
+                .stackName(appName+"-"+deploymentConfig.getEnvType().toString().toLowerCase())
                 .description("Application "+appName+"-"+deploymentConfig.getEnvType().getType().toLowerCase())
                 .env(deploymentConfig.getEnv())
                 .build());

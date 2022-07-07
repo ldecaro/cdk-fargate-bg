@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
-public class ApiStackProps implements StackProps {
+public class ExampleStackProps implements StackProps {
 
     private String appName              =   null;
     private String deploymentConfig     =   null;
@@ -49,7 +49,7 @@ public class ApiStackProps implements StackProps {
     }
 
 
-    public ApiStackProps(String appName, String deploymenConfig, Environment env, Map<String,String> tags, Boolean terminationProtection, String stackName, String description){
+    public ExampleStackProps(String appName, String deploymenConfig, Environment env, Map<String,String> tags, Boolean terminationProtection, String stackName, String description){
         this.appName = appName;
         this.env = env;
         this.tags = tags;
@@ -110,8 +110,8 @@ public class ApiStackProps implements StackProps {
             return this;
         }
 
-        public ApiStackProps build(){
-            return new ApiStackProps(appName, deploymentConfig, env, tags, terminationProtection, stackName, description);
+        public ExampleStackProps build(){
+            return new ExampleStackProps(appName, deploymentConfig, env, tags, terminationProtection, stackName, description);
         }
     }
 }   
