@@ -49,7 +49,7 @@ public class BootstrapCodeDeploy extends Stack {
                     .resources( Arrays.asList("arn:aws:kms:*:"+Util.getTrustedAccount()+":key/*") )
                     .conditions(new HashMap<String,Object>(){{
                         put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
-                            put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/oolchaintencryptionalias*")); 
+                            put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/toolchaitencryptionalias*")); 
                         }});
                     }})
                     .build()
