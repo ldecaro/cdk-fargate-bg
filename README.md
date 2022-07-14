@@ -69,7 +69,7 @@ The pipeline can be deployed in the following scenarios in four simple steps:
 
 - **Single Account**
 
-![Architecture](/imgs/single-account.png)
+![Architecture](/imgs/single-account-single-region.png)
 
   - **Single Account and Single Region**
 
@@ -99,6 +99,8 @@ cdk deploy ecs-microservice-toolchain --require-approval never
 
 - **Single Account and Cross-Region**
 
+![Architecture](/imgs/single-account-single-region.png)
+
 1. Define account
 ```
 export TOOLCHAIN_ACCT=111111111111
@@ -124,7 +126,7 @@ cdk deploy ecs-microservice-toolchain --require-approval never
 ```
 
 
-- **Cross-Acccount**
+- **Cross-Acccount and Single Region**
 
 ![Architecture](/imgs/cross-account.png)
 

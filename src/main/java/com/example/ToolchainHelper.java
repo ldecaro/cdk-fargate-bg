@@ -59,7 +59,7 @@ public class ToolchainHelper {
         .synth(ShellStep.Builder.create(appName+"-synth")
             .input(source)
             .installCommands(Arrays.asList(
-                "npm install -g aws-cdk@2.20.0"
+                "npm install -g aws-cdk@2.31.1"
                 ))
             .commands(Arrays.asList(
                 "mvn -B clean package",
