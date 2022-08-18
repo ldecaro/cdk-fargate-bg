@@ -19,8 +19,6 @@ import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.example.DeploymentConfig.EnvType;
-
 import software.amazon.awscdk.Environment;
 
 public class Util {
@@ -75,8 +73,8 @@ public class Util {
         return fileContent;
 	}
 
-	public static String getTrustedAccount(){
-		return System.getenv("CDK_DEPLOY_TRUST");
+	public static String getPipelineAccount(){
+		return System.getenv("CDK_DEPLOY_PIPELINE");
 	}
     
 	public static Environment makeEnv(){
@@ -86,10 +84,12 @@ public class Util {
     // Helper method to build an environment
     public static Environment makeEnv(String account, String region) {
 
-		account = (account == null) ? System.getenv("CDK_DEPLOY_ACCOUNT") : account;
-        region = (region == null) ? System.getenv("CDK_DEPLOY_REGION") : region;
-        account = (account == null) ? System.getenv("CDK_DEFAULT_ACCOUNT") : account;
-        region = (region == null) ? System.getenv("CDK_DEFAULT_REGION") : region;
+		String localAccount = (account == null) ? System.getenv("CDK_DEPLOY_ACCOUNT") : System.getenv("AWS_DEFAULT_ACCOUNT");
+        String localRegion = (region == null) ? System.getenv("CDK_DEPLOY_REGION") : System.getenv("AWS_DEFAULT_REGION");
+
+		account = localAccount == null ?  account : localAccount;
+		region = localRegion == null ? region : localRegion;
+
 		//System.out.println("Using Account-Region: "+ account+"-"+region);
         return Environment.builder()
                 .account(account)
@@ -97,56 +97,34 @@ public class Util {
                 .build();
     }
 
-	private static Environment makeEnv(String env){
+/* 	private static Environment makeEnv(String env){
 
         if( env != null && !"undefined".equals(env) && !"".equals(env.trim())){
             return Util.makeEnv(env.split("/")[0], env.split("/")[1]);
         }else{
             return Util.makeEnv();
         }		
-	}
+	} */
 
-	public static Environment getEnv(EnvType type){
-
-		if(Util.props == null){
+ 	public static Environment toolchainEnv(){
+	
+		return DeploymentConfig.getToolchainEnv();
+/* 		if(Util.props == null){
 			loadProperties();
 		}
-
-		switch(type){
-
-			case ALPHA:{
-				return Util.makeEnv(props.getProperty(EnvType.ALPHA.toString().toLowerCase()));
-			}
-			case BETA:{
-				return Util.makeEnv(props.getProperty(EnvType.BETA.toString().toLowerCase()));
-			}
-			case GAMMA:{
-				return Util.makeEnv(props.getProperty(EnvType.GAMMA.toString().toLowerCase()));
-			}
-			default:{
-				System.out.println("Util.getEnv is trying to access an environment that doesn't exist");
-				throw new IllegalArgumentException("Trying to access an environment that doesn't exist: "+type);
-			}
-		}
+		return Util.makeEnv(Util.props.getProperty("toolchain")); */
 	}
-
-	public static Environment toolchainEnv(){
-
-		if(Util.props == null){
-			loadProperties();
-		}
-		return Util.makeEnv(Util.props.getProperty("toolchain"));
-	}
-
+ 
 	public static String appName(){
 
-		if(Util.props == null ){
+		return DeploymentConfig.getAppName();
+/* 		if(Util.props == null ){
 			loadProperties();
 		}
-		return Util.props.getProperty("appName");
-	}
+		return Util.props.getProperty("appName"); */
+	} 
 
-	public static Boolean addProperty(String property, String value){
+/* 	public static Boolean addProperty(String property, String value){
 
 		Util.props.put(property, value);
 		try{
@@ -156,9 +134,9 @@ public class Util {
 			System.out.println("Could not save property "+property+" to file app.properties. Msg: "+property);
 			return false;
 		}
-	}
+	} */
      
-	private static void loadProperties() {
+/* 	private static void loadProperties() {
 
 		Util.props = new Properties();
 		try{
@@ -172,7 +150,7 @@ public class Util {
 			System.out.println("Abandoning...");
 			System.exit(0);
 		}
-	}
+	} */
 
 	public static void zipDirectory(ZipOutputStream zos, File fileToZip, String parentDirectoryName, final Boolean REMOVE_ROOT) throws Exception {
 

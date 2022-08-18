@@ -15,7 +15,7 @@ public class Api extends Construct {
 
         super(scope, id);
         String appName          = props.getAppName();
-        String strEnvType       =   id.split("-")[id.split("-").length-1].toLowerCase();
+        String strEnvType       =   id.split("Api")[id.split("Api").length-1];
 
         DockerImageAsset.Builder
         .create(scope, appName+"-container")

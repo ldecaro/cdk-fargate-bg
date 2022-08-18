@@ -106,6 +106,7 @@ public class ApiHelper {
         ApplicationListener listener = lb.getListeners().get(0);
 
         String tgBlueName = appName+"-"+strEnvType+"-Blue";
+        tgBlueName = tgBlueName.length()>32 ? tgBlueName.substring(tgBlueName.length()-32) : tgBlueName;
         listener.addTargets(
             appName+"blue-tg", 
             AddApplicationTargetsProps.builder()
@@ -183,9 +184,12 @@ public class ApiHelper {
         sg.addIngressRule(Peer.anyIpv4(), Port.allTcp());
         sg.addIngressRule(Peer.anyIpv4(), Port.allUdp());           
 
+        String tgGreenName = appName+"-"+strEnvType+"-Green";
+        tgGreenName = tgGreenName.length()>32 ? tgGreenName.substring(tgGreenName.length()-32) : tgGreenName;
+
         ApplicationTargetGroup tgGreen   =   ApplicationTargetGroup.Builder.create(scope, appName+"-green-tg")
             .protocol(ApplicationProtocol.HTTP)
-            .targetGroupName(appName+"-"+strEnvType+"-Green")
+            .targetGroupName(tgGreenName)
             .targetType(TargetType.IP)
             .vpc(cluster.getVpc())
             .build();
@@ -227,9 +231,9 @@ public class ApiHelper {
         lambdaEnv.put("deploymentConfigName", deploymentConfigName == null ? DeploymentConfig.DEPLOY_ALL_AT_ONCE : deploymentConfigName );
 
 
-        SingletonFunction customResource = SingletonFunction.Builder.create(scope, appName+"-codedeploy-blue-green-lambda")
-            .uuid(appName+"-codedeploy-blue-green-lambda")
-            .functionName(appName+"-codedeploy-blue-green-lambda")
+        SingletonFunction customResource = SingletonFunction.Builder.create(scope, appName+"-lambda")
+            .uuid(appName+"-lambda")
+            .functionName(appName+"-lambda")
             .runtime(software.amazon.awscdk.services.lambda.Runtime.PYTHON_3_9)
             .timeout(Duration.seconds(870))
             .memorySize(128)

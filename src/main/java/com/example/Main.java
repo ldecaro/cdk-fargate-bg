@@ -6,15 +6,15 @@ import software.amazon.awscdk.StackProps;
 
 /**
  * The application includes a Git repository and a Toolchain. The Toolchain 
- * deploys the Greeting microservice into multiple environments using
+ * deploys the Example microservice into multiple environments using
  * AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. It supports
- * single-account or cross-account deployment models.
+ * the single-account and cross-account deployment models.
  * 
- * ./cdk-bootstrap-deploy-to.sh # before running the application.
+ * See prerequisites (README.md) before running the application.
  */
 public class Main {
 
-    public static void main(String args[]) throws Exception{
+    public static void main(String args[]) throws Exception {
 
         App  app = new App();
 
@@ -32,7 +32,7 @@ public class Main {
 
         //deploying the stacks...                                 
         Repository git    =   new Repository(app, 
-            appName+"-git", 
+            appName+"Git", 
             appName,
             IS_CREATING,
             StackProps.builder()
@@ -41,7 +41,7 @@ public class Main {
                 .build());
 
         new Toolchain(app, 
-            appName+"-toolchain", 
+            appName+"Toolchain", 
             ToolchainStackProps.builder()
                 .appName(appName)
                 .env(envToolchain)

@@ -18,11 +18,12 @@ public class BootstrapCodeDeploy extends Stack {
     
     public BootstrapCodeDeploy(Construct scope, StackProps props){
 
-        super(scope, "aws-code-deploy-bootstrap", props);
+        super(scope, "BootstrapCodeDeploy", props);
 
-        Role crossAccountRole = Role.Builder.create(this, "AWSCodeDeployRoleForBlueGreen")
-            .assumedBy(new AccountPrincipal( Util.getTrustedAccount() == null ? props.getEnv().getAccount() : Util.getTrustedAccount() ))
-            .roleName("AWSCodeDeployRoleForBlueGreen")
+        String toolchainAccount = Util.getPipelineAccount() == null ? props.getEnv().getAccount() : Util.getPipelineAccount();
+        Role crossAccountRole = Role.Builder.create(this, BootstrapCodeDeploy.getRoleName())
+            .assumedBy(new AccountPrincipal( toolchainAccount ))
+            .roleName(BootstrapCodeDeploy.getRoleName())
             .description("CodeDeploy Execution Role for Blue Green Deploy")
             .path("/")
             .managedPolicies(Arrays.asList(
@@ -38,7 +39,9 @@ public class BootstrapCodeDeploy extends Stack {
         //If trust that means there is a cross-region or cross-account environment being set up. 
         //KMS in the toolchain account
         // https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
-        if( isTrust() ){
+
+        //TODO testing in the single account and cross-region scenario if I can have this policy created beforehand and if it would still work
+        // if( isTrust() ){
 
             Policy policy = Policy.Builder.create(this, "kms-codepipeline-cross-region-account")
                 .policyName("KMSArfifactAWSCodePipeline")
@@ -46,24 +49,29 @@ public class BootstrapCodeDeploy extends Stack {
                     PolicyStatement.Builder.create()
                     .effect(Effect.ALLOW)
                     .actions(Arrays.asList("kms:Decrypt", "kms:DescribeKey"))
-                    .resources( Arrays.asList("arn:aws:kms:*:"+Util.getTrustedAccount()+":key/*") )
+                    // .resources( Arrays.asList("arn:aws:kms:*:"+Util.getPipelineAccount()+":key/*") )
+                    .resources( Arrays.asList("arn:aws:kms:*:"+toolchainAccount+":key/*") )
                     .conditions(new HashMap<String,Object>(){{
                         put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
-                            put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/toolchaitencryptionalias*")); 
+                            put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/*encryptionalias*")); 
                         }});
                     }})
                     .build()
                 )).build();
 
             crossAccountRole.attachInlinePolicy( policy );
-        }
+        // }
 
         CfnOutput.Builder.create(this, "CrossAccountCodeDeployRole" )
         .description("Cross Account CodeDeploy role created for account: "+props.getEnv().getAccount()+"/"+props.getEnv().getRegion())
         .value(crossAccountRole.getRoleArn());
     }
 
-    private Boolean isTrust(){
-        return Util.getTrustedAccount()== null? Boolean.FALSE : Boolean.TRUE;
+    public static String getRoleName(){
+        return "AWSCodeDeployRoleForBlueGreen";
     }
+
+    // private Boolean isTrust(){
+    //     return Util.getPipelineAccount()== null? Boolean.FALSE : Boolean.TRUE;
+    // }
 }

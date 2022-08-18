@@ -13,12 +13,12 @@ class Deployment extends Stage {
         super(scope, id );
 
         new Example(this, 
-            appName+"-api-"+deploymentConfig.getEnvType().toString().toLowerCase(), 
+            appName+"-api-"+deploymentConfig.getStageName().toLowerCase(), 
             ExampleStackProps.builder()
                 .appName(appName)
                 .deploymentConfig(deploymentConfig.getDeployConfig())
-                .stackName(appName+"-"+deploymentConfig.getEnvType().toString().toLowerCase())
-                .description("Application "+appName+"-"+deploymentConfig.getEnvType().getType().toLowerCase())
+                .stackName(appName+deploymentConfig.getStageName())
+                .description("Application "+appName+"-"+deploymentConfig.getStageName().toLowerCase())
                 .env(deploymentConfig.getEnv())
                 .build());
     }

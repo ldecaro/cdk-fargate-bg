@@ -6,8 +6,7 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import software.amazon.awscdk.Environment;
-import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
 import software.amazon.awscdk.pipelines.CodePipelineActionFactoryResult;
@@ -53,21 +52,25 @@ public class ToolchainHelper {
         
         return CodePipeline.Builder.create(scope, appName+"-codepipeline")
         .selfMutation(Boolean.TRUE)
-        .crossAccountKeys(Boolean.TRUE)
         .publishAssetsInParallel(Boolean.FALSE)
         .dockerEnabledForSelfMutation(Boolean.TRUE)
+        .crossAccountKeys(Boolean.TRUE)
         .synth(ShellStep.Builder.create(appName+"-synth")
             .input(source)
             .installCommands(Arrays.asList(
                 "npm install -g aws-cdk@2.31.1"
                 ))
+            .env(new HashMap<String,String>(){{
+                put("CDK_DEPLOY_ACCOUNT", ((Stack)scope).getAccount());
+                put("CDK_DEPLOY_REGION", ((Stack)scope).getRegion());
+            }})
             .commands(Arrays.asList(
                 "mvn -B clean package",
                 "cd target && ls -d  */ | xargs rm -rf && ls -lah && cd .. ",
                 "cdk synth"))
             .build())
         .build(); 
-    }      
+    }
 
     /**
      * Configures appspec.yaml, taskdef.json and imageDetails.json using information coming from the cdk.out (.assets files)
@@ -78,7 +81,7 @@ public class ToolchainHelper {
      */
     List<String> configureCodeDeploy(String appName, DeploymentConfig deploymentConfig){
 
-        final String strEnvType =   deploymentConfig.getEnvType().getType();
+        final String stageName =   deploymentConfig.getStageName();
         final String account =   deploymentConfig.getEnv().getAccount();
         final String region =   deploymentConfig.getEnv().getRegion();
 
@@ -86,33 +89,18 @@ public class ToolchainHelper {
 
             "mkdir codedeploy",
             "ls -l",
-            "export REPO_NAME=$(cat *"+strEnvType+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "export TAG_NAME=$(cat *"+strEnvType+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "export REPO_NAME=$(cat *"+stageName.toLowerCase()+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "export TAG_NAME=$(cat *"+stageName.toLowerCase()+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
             "echo $REPO_NAME",
             "echo $TAG_NAME",
             "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
             "sed 's#APPLICATION#"+appName+"#g' ../source/codedeploy/template-appspec.yaml >> codedeploy/appspec.yaml",
-            "sed 's#APPLICATION#"+appName+"#g' ../source/codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+appName+"-"+strEnvType.toLowerCase()+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
+            "sed 's#APPLICATION#"+appName+"#g' ../source/codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+appName+"-"+stageName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
             "cat codedeploy/appspec.yaml",
             "cat codedeploy/taskdef.json",
             "cat codedeploy/imageDetail.json"
         );     
-    }
-
-    DeploymentConfig createDeploymentConfig(DeploymentConfig.EnvType envType, String deploymentConfig, final ToolchainStackProps props){
-
-        Environment env     =   Util.getEnv(envType);
-
-        return new DeploymentConfig(
-            scope, 
-            props.getAppName(),
-            deploymentConfig,
-            envType,
-            StackProps.builder()
-                .env(env)
-                .stackName(props.getAppName()+"-svc-"+envType.toString().toLowerCase())
-                .build());          
-    }    
+    }  
     
     public CodePipelineSource getCodePipelineSource(){
         return this.source;
@@ -161,7 +149,7 @@ public class ToolchainHelper {
 
     void configureDeployStage(DeploymentConfig deployConfig, CodePipeline pipeline, CodePipelineSource source, ToolchainStackProps props){
    
-        final String strEnvType =   deployConfig.getEnvType().toString().toLowerCase();
+        final String stageName =   deployConfig.getStageName();
         ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
             .input(pipeline.getCloudAssemblyFileSet())
             .additionalInputs(new HashMap<String,IFileSetProducer>(){{
@@ -172,7 +160,7 @@ public class ToolchainHelper {
             .build();    
 
         Deployment deploy = new Deployment(scope, 
-            "Deploy-"+deployConfig.getEnvType().getType(), 
+            "Deploy-"+stageName, 
             props.getAppName(),
             deployConfig);
 
@@ -180,8 +168,8 @@ public class ToolchainHelper {
         
         stageDeployment.addPre(codeBuildPre);
         stageDeployment.addPost(new ToolchainHelper.CodeDeployStep(
-            "codeDeploy"+deployConfig.getEnvType().toString(), 
-            strEnvType,
+            "codeDeploy"+stageName.toLowerCase(), 
+            stageName.toLowerCase(),
             codeBuildPre.getPrimaryOutput(), 
             deployConfig));
     }

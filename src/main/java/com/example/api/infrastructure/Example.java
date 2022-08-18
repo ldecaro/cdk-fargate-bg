@@ -8,9 +8,9 @@ public class Example extends Stack {
 
     public Example(Construct scope, String id, ExampleStackProps props ){
 
-        super(scope, id, props);
-
-        Api example = new Api(this, props.getAppName()+"-api"+this.getStackName().substring(this.getStackName().lastIndexOf("-")), props);
+        super(scope, props.getStackName(), props);
+        
+        Api example = new Api(this, props.getAppName()+"Api"+this.getStackName().substring(this.getStackName().indexOf(props.getAppName())+props.getAppName().length()), props);
         
         CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
