@@ -170,7 +170,7 @@ public class DeploymentConfig extends Stack {
 
             createDeploymentConfig(scope,
                 appName,
-                "SIT",
+                "PreProd",
                 DeploymentConfig.DEPLOY_ALL_AT_ONCE,
                 System.getenv("CDK_DEPLOY_ACCOUNT"),
                 System.getenv("CDK_DEPLOY_REGION"))                
