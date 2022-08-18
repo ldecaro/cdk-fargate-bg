@@ -172,26 +172,8 @@ public class DeploymentConfig extends Stack {
                 appName,
                 "SIT",
                 DeploymentConfig.DEPLOY_ALL_AT_ONCE,
-                // "111111111111",
                 System.getenv("CDK_DEPLOY_ACCOUNT"),
-                // System.getenv("CDK_DEPLOY_REGION")
-                "us-east-2"),
-
-            createDeploymentConfig(scope,
-                appName,
-                "UAT",
-                DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES, 
-                // "222222222222",
-                "742584497250",
-                "us-east-1"),
-                
-            createDeploymentConfig(scope,
-                appName,
-                "Prod",
-                DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES, 
-                // "222222222222",
-                "279211433385",
-                "us-east-1")                   
+                System.getenv("CDK_DEPLOY_REGION"))                
         } );
     }    
 }
