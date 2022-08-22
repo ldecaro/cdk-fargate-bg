@@ -28,7 +28,6 @@ public class Main {
         }
 
         Environment envToolchain =   Util.toolchainEnv();
-        System.out.println("Toolchain env: "+envToolchain.getAccount()+"/"+envToolchain.getRegion());
 
         //deploying the stacks...                                 
         Repository git    =   new Repository(app, 

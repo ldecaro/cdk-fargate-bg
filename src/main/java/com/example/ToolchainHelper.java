@@ -89,8 +89,8 @@ public class ToolchainHelper {
 
             "mkdir codedeploy",
             "ls -l",
-            "export REPO_NAME=$(cat *"+stageName.toLowerCase()+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "export TAG_NAME=$(cat *"+stageName.toLowerCase()+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "export REPO_NAME=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "export TAG_NAME=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
             "echo $REPO_NAME",
             "echo $TAG_NAME",
             "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    

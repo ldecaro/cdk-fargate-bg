@@ -146,7 +146,7 @@ public class DeploymentConfig extends Stack {
     public static final Environment getToolchainEnv(){
 
         String account = System.getenv("CDK_DEPLOY_ACCOUNT") == null ? System.getenv("AWS_DEFAULT_ACCOUNT") : System.getenv("CDK_DEPLOY_ACCOUNT");
-        String region = System.getenv("CDK_DEPLOY_REGION") == null ? System.getenv("AWS_DEFAULT_REGION") : System.getenv("AWS_DEFAULT_REGION");
+        String region = System.getenv("CDK_DEPLOY_REGION") == null ? System.getenv("AWS_DEFAULT_REGION") : System.getenv("CDK_DEPLOY_REGION");
 
         if( account == null ){ 
             System.out.println("ERROR: Toolchain account and region not configured. Please use environment variables PIPELINE_TOOLCHAIN_ACCOUNT and PIPELINE_TOOLCHAIN_REGION or configure class com.example.DeploymentConfig.java");
@@ -165,7 +165,7 @@ public class DeploymentConfig extends Stack {
             createDeploymentConfig(scope,
                 appName,
                 "PreProd",
-                DeploymentConfig.DEPLOY_ALL_AT_ONCE,
+                DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
                 System.getenv("CDK_DEPLOY_ACCOUNT"),
                 System.getenv("CDK_DEPLOY_REGION"))                
         } );

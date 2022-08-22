@@ -2,10 +2,8 @@ package com.example;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
@@ -15,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -24,21 +21,6 @@ import software.amazon.awscdk.Environment;
 public class Util {
 	
 	public Util() {}
-
-	public static Properties props	=	null;
-	
-	static{
-        InputStream is = null;
-        try {
-            props = new Properties();
-            is = Util.class.getResourceAsStream("/app.properties");
-            props.load(is);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 	
     public String getFile(String filename) {
 		
