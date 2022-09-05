@@ -31,7 +31,7 @@ Although instructions on this document are specific for Linux environments, proj
 
 ## Create AWS CodeCommit repository for this example
 
-To make it easier following the example, create an empty AWS CodeCommit repository and use it as source code repository for the pipeline.  For that, you can copy and paste the following commands:
+To make it easier following the example, create an empty AWS CodeCommit repository and use it as source code repository for the pipeline. In this example, I'm authenticating into AWS CodeCommit using [git credentials](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-gc.html). Once you have your credentials set you can copy and paste the following commands:
 ```
 export REPO_URL=$(aws codecommit create-repository --repository-name ExampleMicroservice --output text --query repositoryMetadata.cloneUrlHttp)
 git remote set-url --push origin $REPO_URL
