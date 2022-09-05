@@ -201,14 +201,14 @@ aws codecommit delete-repository --repository-name ExampleMicroservice
 ```
 ## Testing 
 
-The application will become accessible for the first time when the pipeline reaches the last action of the Deploy stage. You can test the application by using the public URL from the application load balancer. This URL is visible in the Output tab of the CloudFormation stack named `ExampleMicroservice[Alpha|Beta]` (image below). 
+The application will become accessible for the first time when the pipeline reaches the last action of the Deploy stage. At this time, you can use the public URL of the application load balancer to test the application. This URL is visible in the Output tab of the CloudFormation stack named `ExampleMicroservicePreProd` (image below). 
 
 <img src="/imgs/app-url.png" width=80%>
 
-Once you access the application on port 80, it will show a hello-world screen with some coloured circles representing the version of the application. At this point, refreshing the page repeatedly will show the different versions of the same application. The Blue and Green versions of this application will appear as in the image below:
+Once acessed, the application will show a hello-world screen with some coloured circles representing the version of the application. At this point, refreshing the page repeatedly will show the different versions of the same application. The Blue and Green versions of this application will appear as in the image below:
 
 <img src="/imgs/blue-app.png" width=50% height=50%><img src="/imgs/green-app.png" width=50% height=50%>
 
-At the same time, you use the CodeDeploy console to view the deployment details: Sign in to the AWS Management Console and open the CodeDeploy console at https://console.aws.amazon.com/codedeploy. In the navigation pane, expand **Deploy**, and then choose **Deployments**. Click to view the details of the deployment from application **ExampleMicroservice-*** and you will be able to see the deployment status and traffic shifting progress (image below) :
+At the same time, you can view the deployment details using the console of the CodeDeploy: for that, Sign in to the AWS Management Console and open the CodeDeploy console at https://console.aws.amazon.com/codedeploy. In the navigation pane, expand **Deploy**, and then choose **Deployments**. Click to view the details of the deployment from application **ExampleMicroservice-*** and you will be able to see the deployment status and traffic shifting progress (image below) :
 
 <img src="/imgs/CodeDeployDeployment.png" width=80%>
