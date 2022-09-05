@@ -13,7 +13,7 @@ public class Toolchain extends Stack {
         String gitRepo  =   props.getGitRepo();
 
         new BlueGreenPipeline(
-            scope,
+            this,
             "BlueGreenPipeline", 
             appName, 
             gitRepo, 

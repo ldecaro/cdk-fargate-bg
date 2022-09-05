@@ -13,7 +13,7 @@ public interface Config {
     public static final String TOOLCHAIN_REGION      = "us-east-1";
     public static final String TOOLCHAIN_ACCOUNT     = "111111111111";
     public static final String APP_NAME              = "ExampleMicroservice";
-    public static final String CODECOMMIT_REPO       = APP_NAME;
+    public static final String CODECOMMIT_REPO       = Config.APP_NAME;
     public static final String CODECOMMIT_BRANCH     = "master";
 
     static Environment toolchainEnv(){

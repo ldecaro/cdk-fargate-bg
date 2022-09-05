@@ -17,35 +17,38 @@ The project requires the following tools:
 * AWS CLI v2 - See [installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 * Node.js - See [installation instructions](https://nodejs.org/en/download/package-manager/)
 
-## Clone the example and install the AWS CDK Toolkit locally
+Although instructions on this document are specific for Linux environments, project can also be built and executed from a Windows environment.  
 
-Clone the project from GitHub and build it locally:
+## Clone and mirror the example to AWS CodeComit
+
+To make it easier following the example, create an empty AWS CodeCommit repository and use it as source code repository for the pipeline. In this example, I'm authenticating into AWS CodeCommit using [git credentials](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-gc.html). Once you have your credentials set you can copy and paste the following commands:
 
 ```
 git clone --mirror https://github.com/ldecaro/cdk-fargate-bg.git
-cd cdk-fargate-bg
-npm install aws-cdk@2.31.1
-```
+cd cdk-fargate-bg.git
 
-Although instructions on this document are specific for Linux environments, project can also be built and executed from a Windows environment.  
-
-## Create AWS CodeCommit repository for this example
-
-To make it easier following the example, create an empty AWS CodeCommit repository and use it as source code repository for the pipeline. In this example, I'm authenticating into AWS CodeCommit using [git credentials](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-gc.html). Once you have your credentials set you can copy and paste the following commands:
-```
 export REPO_URL=$(aws codecommit create-repository --repository-name ExampleMicroservice --output text --query repositoryMetadata.cloneUrlHttp)
 git remote set-url --push origin $REPO_URL
 git push --mirror
+cd ..
+rm -rf cdk-fargate-bg.git
+```
+## Clone the environment from CodeCommit:
+
+```
+git clone $REPO_URL
+cd ExampleMicroservice
 ```
 
 
 ## Configure environment
+
 Edit `src/main/java/com/example/Config.java` and validate the value of the following 5 properties:
 ```
     public static final String TOOLCHAIN_REGION      = "us-east-1";
-    public static final String TOOLCHAIN_ACCOUNT     = "742584497250";
+    public static final String TOOLCHAIN_ACCOUNT     = "111111111111";
     public static final String APP_NAME              = "ExampleMicroservice";
-    public static final String CODECOMMIT_REPO       = APP_NAME;
+    public static final String CODECOMMIT_REPO       = Config.APP_NAME;
     public static final String CODECOMMIT_BRANCH     = "master";
 ```
 
@@ -53,14 +56,16 @@ Edit `src/main/java/com/example/Config.java` and validate the value of the follo
 
 I'm considering  most people will be running this in sandbox accounts. Therefore, I decided to use AWSCodeCommit to host the repository. If you need details to configure authentication into CodeCommit please refer to [this](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up.html) tutorial.
 ```
-git add .
+git add src/main/java/com/example/Config.java
 git commit -m "my blue/green pipeline"
 git push
 ```
 
-## Build
+## Build and install AWS CDK locally
 ```
+npm install aws-cdk@2.31.1
 mvn clean package
+cdk ls
 ```
 
 ## Bootstrap
@@ -108,7 +113,7 @@ npx cdk deploy ExampleMicroserviceToolchain --require-approval never
 ![Architecture](/imgs/cross-account-cross-region.png)
 
 
-1. Update the method ```getStages``` inside class [com.example.Config.java](https://github.com/ldecaro/cdk-fargate-bg/blob/master/src/main/java/com/example/Config.java) and add or remove stages as needed::
+1. Update the method ```getStages``` inside class `src/main/java/com/example/Config.java` and add or remove stages as needed::
 ```
 return  Arrays.asList( new DeploymentConfig[]{
 
@@ -134,7 +139,7 @@ mvn clean package
 
 3. Commit into repository:
 ```
-git add .
+git add src/main/java/com/example/Config.java
 git commit -m "cross-account blue/green pipeline"
 git push 
 ```
@@ -146,6 +151,18 @@ npx cdk deploy ExampleMicroserviceToolchain --require-approval never
 
 ### **The CI/CD Pipeline**
 
+The pipeline is deployed by a Construct named `BlueGreenPipeline`. As a convenience, the number of stages is dynamic and can be customized according to the requirements.
+
+```
+new BlueGreenPipeline(
+    this,
+    "BlueGreenPipeline", 
+    appName, 
+    gitRepo, 
+    Config.getStages(
+        scope, 
+        appName));
+```
 
 By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The class `com.example.Config` contains a method named `getStages` that can be updated to add or remove stages. Please find below an example to add a new stage named ```Prod```:
 
