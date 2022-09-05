@@ -128,8 +128,10 @@ public class BlueGreenPipeline extends Construct {
 
             "mkdir codedeploy",
             "ls -l",
-            "export REPO_NAME=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "export TAG_NAME=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "REPO_NAME=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "TAG_NAME=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "export REPO_NAME",
+            "export TAG_NAME",
             "echo $REPO_NAME",
             "echo $TAG_NAME",
             "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
