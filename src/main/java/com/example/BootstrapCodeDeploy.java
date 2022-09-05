@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 import software.amazon.awscdk.CfnOutput;
+import software.amazon.awscdk.CfnParameter;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.iam.AccountPrincipal;
@@ -20,7 +21,13 @@ public class BootstrapCodeDeploy extends Stack {
 
         super(scope, "BootstrapCodeDeploy", props);
 
-        String toolchainAccount = Util.getPipelineAccount() == null ? props.getEnv().getAccount() : Util.getPipelineAccount();
+        CfnParameter cfnToolchainAccount = CfnParameter.Builder.create(this, "toolchainAccount")
+            .type("String")
+            .description("The account number where the toolchain is deployed")
+            .build();
+        
+        String toolchainAccount =   cfnToolchainAccount.getValueAsString();
+
         Role crossAccountRole = Role.Builder.create(this, BootstrapCodeDeploy.getRoleName())
             .assumedBy(new AccountPrincipal( toolchainAccount ))
             .roleName(BootstrapCodeDeploy.getRoleName())
@@ -33,34 +40,24 @@ public class BootstrapCodeDeploy extends Stack {
                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess"),
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployRoleForECS"),
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployDeployerAccess")                
-            )).build();    
+            )).build();
 
+        Policy policy = Policy.Builder.create(this, "kms-codepipeline-cross-region-account")
+            .policyName("KMSArfifactAWSCodePipeline")
+            .statements(Arrays.asList(
+                PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(Arrays.asList("kms:Decrypt", "kms:DescribeKey"))
+                .resources( Arrays.asList("arn:aws:kms:*:"+toolchainAccount+":key/*") )
+                .conditions(new HashMap<String,Object>(){{
+                    put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
+                        put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/*encryptionalias*")); 
+                    }});
+                }})
+                .build()
+            )).build();
 
-        //If trust that means there is a cross-region or cross-account environment being set up. 
-        //KMS in the toolchain account
-        // https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-modifying-external-accounts.html
-
-        //TODO testing in the single account and cross-region scenario if I can have this policy created beforehand and if it would still work
-        // if( isTrust() ){
-
-            Policy policy = Policy.Builder.create(this, "kms-codepipeline-cross-region-account")
-                .policyName("KMSArfifactAWSCodePipeline")
-                .statements(Arrays.asList(
-                    PolicyStatement.Builder.create()
-                    .effect(Effect.ALLOW)
-                    .actions(Arrays.asList("kms:Decrypt", "kms:DescribeKey"))
-                    // .resources( Arrays.asList("arn:aws:kms:*:"+Util.getPipelineAccount()+":key/*") )
-                    .resources( Arrays.asList("arn:aws:kms:*:"+toolchainAccount+":key/*") )
-                    .conditions(new HashMap<String,Object>(){{
-                        put("ForAnyValue:StringLike", new HashMap<String, Object>(){{
-                            put("kms:ResourceAliases", Arrays.asList("alias/codepipeline*", "alias/*encryptionalias*")); 
-                        }});
-                    }})
-                    .build()
-                )).build();
-
-            crossAccountRole.attachInlinePolicy( policy );
-        // }
+        crossAccountRole.attachInlinePolicy( policy );
 
         CfnOutput.Builder.create(this, "CrossAccountCodeDeployRole" )
         .description("Cross Account CodeDeploy role created for account: "+props.getEnv().getAccount()+"/"+props.getEnv().getRegion())
@@ -70,8 +67,4 @@ public class BootstrapCodeDeploy extends Stack {
     public static String getRoleName(){
         return "AWSCodeDeployRoleForBlueGreen";
     }
-
-    // private Boolean isTrust(){
-    //     return Util.getPipelineAccount()== null? Boolean.FALSE : Boolean.TRUE;
-    // }
 }

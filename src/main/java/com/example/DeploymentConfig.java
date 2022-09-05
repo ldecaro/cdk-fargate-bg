@@ -160,6 +160,8 @@ public class DeploymentConfig extends Stack {
 
     public static final List<DeploymentConfig> getStages(final Construct scope, final String appName){
 
+        
+
         return  Arrays.asList( new DeploymentConfig[]{
 
             createDeploymentConfig(scope,
@@ -167,7 +169,7 @@ public class DeploymentConfig extends Stack {
                 "PreProd",
                 DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
                 System.getenv("CDK_DEPLOY_ACCOUNT"),
-                System.getenv("CDK_DEPLOY_REGION"))                
+                System.getenv("CDK_DEPLOY_REGION")),                
         } );
     }    
 }

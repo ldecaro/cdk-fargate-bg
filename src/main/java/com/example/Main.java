@@ -18,33 +18,16 @@ public class Main {
 
         App  app = new App();
 
-        String appName = Util.appName();
-
-        //if necessary, pack directory to upload
-        final String buildNumber = System.getenv("CODEBUILD_BUILD_NUMBER");
-        Boolean IS_CREATING  =   buildNumber == null ? Boolean.TRUE : Boolean.FALSE;
-        if( IS_CREATING ){
-            Util.createSrcZip(appName);
-        }
-
-        Environment envToolchain =   Util.toolchainEnv();
-
-        //deploying the stacks...                                 
-        Repository git    =   new Repository(app, 
-            appName+"Git", 
-            appName,
-            IS_CREATING,
-            StackProps.builder()
-                .env(envToolchain)
-                .terminationProtection(Boolean.FALSE)
-                .build());
+        String appName =    Config.APP_NAME;
+        
+        Environment envToolchain =   Config.toolchainEnv();
 
         new Toolchain(app, 
             appName+"Toolchain", 
             ToolchainStackProps.builder()
                 .appName(appName)
                 .env(envToolchain)
-                .gitRepo(git.getGitRepository())
+                .gitRepo(Config.CODECOMMIT_REPO)
                 .build());
 
         new BootstrapCodeDeploy(app, 

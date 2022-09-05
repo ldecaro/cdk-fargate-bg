@@ -4,8 +4,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import org.jetbrains.annotations.NotNull;
-
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
@@ -18,7 +16,7 @@ import software.amazon.awscdk.pipelines.ProduceActionOptions;
 import software.amazon.awscdk.pipelines.ShellStep;
 import software.amazon.awscdk.pipelines.StageDeployment;
 import software.amazon.awscdk.pipelines.Step;
-import software.amazon.awscdk.services.codecommit.IRepository;
+import software.amazon.awscdk.services.codecommit.Repository;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.codepipeline.Artifact;
 import software.amazon.awscdk.services.codepipeline.IStage;
@@ -28,21 +26,35 @@ import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsDeployA
 import software.amazon.awscdk.services.iam.IRole;
 import software.constructs.Construct;
 
-public class ToolchainHelper {
+public class BlueGreenPipeline extends Construct {
 
     private Construct scope =   null;
 
-    CodePipelineSource source   =   null;
+    private CodePipelineSource source   =   null;
+    
+    public BlueGreenPipeline(Construct scope, String id, String appName, String gitRepo, List<DeploymentConfig> stages){
 
-    public ToolchainHelper(Construct scope){
-        this.scope  =   scope;
+        super(scope,id);
+        this.scope = scope;
+
+        CodePipeline pipeline   =   createPipeline(
+            appName, 
+            gitRepo);  
+
+        Config.getStages(scope, appName)
+            .forEach(dc-> configureDeployStage(
+                dc, 
+                pipeline, 
+                source, 
+                appName));
     }
 
-    CodePipeline createPipeline(final String appName, IRepository repo){
+
+    CodePipeline createPipeline(final String appName, String repo){
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
-            repo,
-            "main",
+            Repository.fromRepositoryName(scope, "codecommit-repository", repo ),
+            Config.CODECOMMIT_BRANCH,
             CodeCommitSourceOptions
                 .builder()
                 .trigger(CodeCommitTrigger.POLL)
@@ -70,8 +82,35 @@ public class ToolchainHelper {
                 "cdk synth"))
             .build())
         .build(); 
-    }
+    }    
 
+    void configureDeployStage(DeploymentConfig deployConfig, CodePipeline pipeline, CodePipelineSource source, String appName){
+   
+        final String stageName =   deployConfig.getStageName();
+        ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
+            .input(pipeline.getCloudAssemblyFileSet())
+            .additionalInputs(new HashMap<String,IFileSetProducer>(){{
+                put("../source", source);
+            }})
+            .primaryOutputDirectory("codedeploy")          
+            .commands(configureCodeDeploy(appName, deployConfig ))
+            .build();    
+
+        Deployment deploy = new Deployment(scope, 
+            "Deploy-"+stageName, 
+            appName,
+            deployConfig);
+
+        StageDeployment stageDeployment = pipeline.addStage(deploy);
+        
+        stageDeployment.addPre(codeBuildPre);
+        stageDeployment.addPost(new BlueGreenPipeline.CodeDeployStep(
+            "codeDeploy"+stageName.toLowerCase(), 
+            stageName.toLowerCase(),
+            codeBuildPre.getPrimaryOutput(), 
+            deployConfig));
+    }
+    
     /**
      * Configures appspec.yaml, taskdef.json and imageDetails.json using information coming from the cdk.out (.assets files)
      * @param appName
@@ -100,12 +139,8 @@ public class ToolchainHelper {
             "cat codedeploy/taskdef.json",
             "cat codedeploy/imageDetail.json"
         );     
-    }  
-    
-    public CodePipelineSource getCodePipelineSource(){
-        return this.source;
-    }
-
+    }   
+       
     static class CodeDeployStep extends Step implements ICodePipelineActionFactory{
 
         FileSet fileSet;
@@ -125,7 +160,7 @@ public class ToolchainHelper {
         }
 
         @Override
-        public @NotNull CodePipelineActionFactoryResult produceAction(@NotNull IStage stage, @NotNull ProduceActionOptions options) {
+        public  CodePipelineActionFactoryResult produceAction( IStage stage, ProduceActionOptions options) {
 
             Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);           
 
@@ -146,31 +181,4 @@ public class ToolchainHelper {
             return CodePipelineActionFactoryResult.builder().runOrdersConsumed(1).build();
         }
     }    
-
-    void configureDeployStage(DeploymentConfig deployConfig, CodePipeline pipeline, CodePipelineSource source, ToolchainStackProps props){
-   
-        final String stageName =   deployConfig.getStageName();
-        ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
-            .input(pipeline.getCloudAssemblyFileSet())
-            .additionalInputs(new HashMap<String,IFileSetProducer>(){{
-                put("../source", source);
-            }})
-            .primaryOutputDirectory("codedeploy")          
-            .commands(configureCodeDeploy(props.getAppName(), deployConfig ))
-            .build();    
-
-        Deployment deploy = new Deployment(scope, 
-            "Deploy-"+stageName, 
-            props.getAppName(),
-            deployConfig);
-
-        StageDeployment stageDeployment = pipeline.addStage(deploy);
-        
-        stageDeployment.addPre(codeBuildPre);
-        stageDeployment.addPost(new ToolchainHelper.CodeDeployStep(
-            "codeDeploy"+stageName.toLowerCase(), 
-            stageName.toLowerCase(),
-            codeBuildPre.getPrimaryOutput(), 
-            deployConfig));
-    }
 }

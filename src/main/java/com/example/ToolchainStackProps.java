@@ -6,12 +6,11 @@ import org.jetbrains.annotations.Nullable;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.codecommit.IRepository;
 
 public class ToolchainStackProps implements StackProps {
 
     private String appName;
-    private IRepository gitRepo;     
+    private String gitRepo;     
     private Environment env;
     private Map<String,String> tags;
     private Boolean terminationProtection   =   Boolean.FALSE;   
@@ -39,12 +38,12 @@ public class ToolchainStackProps implements StackProps {
         return env;
     }
 
-    public IRepository getGitRepo() {
+    public String getGitRepo() {
         return gitRepo;
     }
 
 
-    public ToolchainStackProps(String appName, IRepository gitRepo, Environment env,Map<String,String> tags, Boolean terminationProtection){
+    public ToolchainStackProps(String appName, String gitRepo, Environment env,Map<String,String> tags, Boolean terminationProtection){
         this.appName = appName;
         this.env = env;
         this.tags = tags;
@@ -58,7 +57,7 @@ public class ToolchainStackProps implements StackProps {
     static class Builder{
 
         private String appName;
-        private IRepository gitRepo;
+        private String gitRepo;
         private Environment env;
         private Map<String,String> tags;
         private Boolean terminationProtection = Boolean.FALSE;
@@ -83,7 +82,7 @@ public class ToolchainStackProps implements StackProps {
             return this;
         }
 
-        public Builder gitRepo(IRepository gitRepo){
+        public Builder gitRepo(String gitRepo){
             this.gitRepo = gitRepo;
             return this;
         }    

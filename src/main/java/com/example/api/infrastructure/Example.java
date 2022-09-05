@@ -7,9 +7,9 @@ import software.constructs.Construct;
 public class Example extends Stack {
 
     public Example(Construct scope, String id, ExampleStackProps props ){
-
-        super(scope, props.getStackName(), props);
         
+        super(scope, props.getStackName(), props);
+
         Api example = new Api(this, props.getAppName()+"Api"+this.getStackName().substring(this.getStackName().indexOf(props.getAppName())+props.getAppName().length()), props);
         
         CfnOutput.Builder.create(this, "VPC")
