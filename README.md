@@ -47,7 +47,7 @@ Edit `src/main/java/com/example/Config.java` and validate the value of the follo
 
 ```
 git add src/main/java/com/example/Config.java
-git commit -m "initial import"
+git commit -m "my test pipeline"
 git push
 ```
 
@@ -55,7 +55,7 @@ git push
 ```
 npm install aws-cdk@2.31.1
 mvn clean package
-cdk ls
+npx cdk ls
 ```
 
 ## Bootstrap
@@ -70,14 +70,14 @@ To accomplish that, use the following commands:
 ```
 export MICROSERVICE_ACCOUNT=111111111111
 export MICROSERVICE_REGION=us-east-1
-cdk bootstrap $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION
+npx cdk bootstrap $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION
 ```
 
 In case the AWS CDK needs to be bootstrapped in cross-account scenarios, the parameter ```--trust``` is required. For more information, please see the [AWS CDK Bootstrapping documentation](https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping.html). For convenience, an example is provided below:
 
 ```
 export TOOLCHAIN_ACCOUNT=111111111111
-cdk bootstrap $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION --trust TOOLCHAIN_ACCOUNT
+npx cdk bootstrap $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION --trust TOOLCHAIN_ACCOUNT
 ```
 
 - **AWS CodeDeploy**
