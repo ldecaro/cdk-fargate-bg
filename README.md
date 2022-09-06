@@ -26,8 +26,8 @@ To make it easier following the example, create an empty AWS CodeCommit reposito
 ```
 git clone https://github.com/ldecaro/cdk-fargate-bg.git
 cd cdk-fargate-bg
-export REPO_URL=$(aws codecommit create-repository --repository-name ExampleMicroservice --output text --query repositoryMetadata.repositoryName)
-git remote set-url --push origin $REPO_URL
+export REPO_NAME=$(aws codecommit create-repository --repository-name ExampleMicroservice --output text --query repositoryMetadata.repositoryName)
+git remote set-url --push origin codecommit://$REPO_NAME
 git add .
 git commit -m "initial import"
 git push 
