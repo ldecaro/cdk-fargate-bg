@@ -60,7 +60,7 @@ public class DeploymentConfig extends Stack {
                     appName+"-"+stgName))
                 .build());  
                 
-        codeDeployRole  = Role.fromRoleArn(this, "aws-code-deploy-role-"+stgName.toLowerCase(), "arn:aws:iam::"+this.getAccount()+":role/"+BootstrapCodeDeploy.getRoleName());
+        codeDeployRole  = Role.fromRoleArn(this, "aws-code-deploy-role-"+stgName.toLowerCase(), "arn:aws:iam::"+this.getAccount()+":role/"+CodeDeployBootstrap.getRoleName());
 
         prepareDockerfile();
         //DockerImageAsset will run during synth, from inside the pipeline

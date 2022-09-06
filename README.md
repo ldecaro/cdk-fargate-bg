@@ -4,7 +4,7 @@ The project deploys a Java-based microservice using a CI/CD pipeline. The pipeli
 
 ![Architecture](/imgs/arch.png)
 
-The AWS CDK application defines two top-level stacks: 1/ *Toolchain* stack, that deploys the CI/CD pipeline 2/ *Repository* stack, that deploys a Git repository using AWS CodeCommit. The pipeline can deploy the *Example* microservice to a single environment or multiple environments. The **blue** version of the *Example* microservice runtime code is deployed when the Example microservice is deployed the first time in an environment. Onwards, the **green** version of the Example microservice runtime code is deployed using AWS CodeDeploy. This Git repository contains the code of the Example microservice and its toolchain in a self-contained solution.
+The AWS CDK application defines two top-level stacks: 1/ *Toolchain* stack, that deploys the CI/CD pipeline 2/ *CodeDeployBootstrap* stack, that bootstraps AWS CodeDeploy in the specified AWS account. The pipeline can deploy the *Example* microservice to a single environment or multiple environments. The **blue** version of the *Example* microservice runtime code is deployed when the Example microservice is deployed the first time in an environment. Onwards, the **green** version of the Example microservice runtime code is deployed using AWS CodeDeploy. This Git repository contains the code of the Example microservice and its toolchain in a self-contained solution.
 
 [Considerations when managing ECS blue/green deployments using CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations) documentation includes the following: _"When managing Amazon ECS blue/green deployments using CloudFormation, you can't include updates to resources that initiate blue/green deployments and updates to other resources in the same stack update"_. The approach used in this project allows to update the Example microservice infrastructure and runtime code in a single commit. To achieve that, the project leverages AWS CodeDeploy's specific [deployment model](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html#deployment-configuration-ecs) using configuration files to allow updating all resources in the same Git commit.
 
@@ -17,30 +17,21 @@ The project requires the following tools:
 * AWS CLI v2 - See [installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 * Node.js - See [installation instructions](https://nodejs.org/en/download/package-manager/)
 
-Although instructions on this document are specific for Linux environments, project can also be built and executed from a Windows environment.  
+Although instructions in this document are specific for Linux environments, project can also be built and executed from a Windows environment.  
 
-## Clone and mirror the example to AWS CodeComit
+## Push example project into AWS CodeCommit
 
-To make it easier following the example, create an empty AWS CodeCommit repository and use it as source code repository for the pipeline. In this example, I'm authenticating into AWS CodeCommit using [git credentials](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-gc.html). Once you have your credentials set you can copy and paste the following commands:
+To make it easier following the example, create an empty AWS CodeCommit repository and use it as source code repository for the pipeline. In this example, I'm authenticating into AWS CodeCommit using [git-remote-codecommit](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-git-remote-codecommit.html). Once you have `git-remote-codecommit` configured you can copy and paste the following commands:
 
 ```
-git clone --mirror https://github.com/ldecaro/cdk-fargate-bg.git
-cd cdk-fargate-bg.git
-
-export REPO_URL=$(aws codecommit create-repository --repository-name ExampleMicroservice --output text --query repositoryMetadata.cloneUrlHttp)
+git clone https://github.com/ldecaro/cdk-fargate-bg.git
+cd cdk-fargate-bg
+export REPO_URL=$(aws codecommit create-repository --repository-name ExampleMicroservice --output text --query repositoryMetadata.repositoryName)
 git remote set-url --push origin $REPO_URL
-git push --mirror
-cd ..
-rm -rf cdk-fargate-bg.git
+git add .
+git commit -m "initial import"
+git push 
 ```
-## Clone the environment from CodeCommit:
-
-```
-git clone $REPO_URL
-cd ExampleMicroservice
-```
-
-
 ## Configure environment
 
 Edit `src/main/java/com/example/Config.java` and validate the value of the following 5 properties:
@@ -52,12 +43,11 @@ Edit `src/main/java/com/example/Config.java` and validate the value of the follo
     public static final String CODECOMMIT_BRANCH     = "master";
 ```
 
-## Upload codebase into AWSCodeCommit
+## Upload codebase into AWS CodeCommit
 
-I'm considering  most people will be running this in sandbox accounts. Therefore, I decided to use AWSCodeCommit to host the repository. If you need details to configure authentication into CodeCommit please refer to [this](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up.html) tutorial.
 ```
 git add src/main/java/com/example/Config.java
-git commit -m "my blue/green pipeline"
+git commit -m "initial import"
 git push
 ```
 
@@ -70,9 +60,11 @@ cdk ls
 
 ## Bootstrap
 
+- **AWS CDK**
+
 Deploying AWS CDK apps into an AWS environment (a combination of an AWS account and region) requires that you provision resources the AWS CDK needs to perform the deployment. Use the AWS CDK Toolkit's `cdk bootstrap` command to achieve that. See the [documentation](https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping.html) for more information.
 
-*`cdk bootstrap` needs to be executed once in each AWS account and Region used for deployment.* At a minimum, if we consider the use case of a single region and single account deployment, AWS CDK and AWS CodeDeploy will need to be bootstrapped once in one account and one region.
+*`cdk bootstrap` needs to be executed once in each AWS account and Region used for deployment.* At a minimum, if we consider the use case of a single account and single Region deployment, AWS CDK and AWS CodeDeploy will need to be bootstrapped once in one account and one Region.
 
 To accomplish that, use the following commands:
 ```
@@ -88,12 +80,21 @@ export TOOLCHAIN_ACCOUNT=111111111111
 cdk bootstrap $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION --trust TOOLCHAIN_ACCOUNT
 ```
 
+- **AWS CodeDeploy**
+
 In addition, AWS CodeDeploy uses a specific AWS IAM role to perform the blue/green deployment. *This role should exist in each account where the microservice is deployed.* As a convenience, a script for bootstrapping AWS CodeDeploy is provided. 
 
 Use the following command to bootstrap CodeDeploy in one account:
 ```
-./codedeploy-bootstrap.sh $TOOLCHAIN_ACCOUNT $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION
+./codedeploy-bootstrap.sh $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION 
 ```
+
+Similarly, if the toolchain account is different than the microservice account, we need to add a trust
+
+```
+./codedeploy-bootstrap.sh $MICROSERVICE_ACCOUNT/$MICROSERVICE_REGION --trust $TOOLCHAIN_ACCOUNT
+```
+
 ## Deploy
 
 This approach supports all combinations of deploying the microservice and its toolchain to AWS accounts and Regions. Below you can find a walkthrough for two scenarios: 1/ single account and single region 2/ cross-account and cross-region.
@@ -103,7 +104,7 @@ This approach supports all combinations of deploying the microservice and its to
 ![Architecture](/imgs/single-account-single-region.png)
 
  
-Deploy the Toolchain and Repository stacks. Deploy the microservice in the same account and region. For other options, please check [DeploymentConfig.java](https://github.com/ldecaro/cdk-fargate-bg/blob/master/src/main/java/com/example/DeploymentConfig.java)
+Deploy the Toolchain stack. It will deploy the microservice in the same account and region. For other options, please check [DeploymentConfig.java](https://github.com/ldecaro/cdk-fargate-bg/blob/master/src/main/java/com/example/DeploymentConfig.java)
 ```
 npx cdk deploy ExampleMicroserviceToolchain --require-approval never
 ```
@@ -113,7 +114,7 @@ npx cdk deploy ExampleMicroserviceToolchain --require-approval never
 ![Architecture](/imgs/cross-account-cross-region.png)
 
 
-1. Update the method ```getStages``` inside class `src/main/java/com/example/Config.java` and add or remove stages as needed::
+1. Update the method ```getStages``` inside class `src/main/java/com/example/Config.java` and add or remove stages as needed: 
 ```
 return  Arrays.asList( new DeploymentConfig[]{
 
@@ -129,7 +130,7 @@ return  Arrays.asList( new DeploymentConfig[]{
       "Prod",
       DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
       222222222222,
-      Config.TOOLCHAIN_REGION)            
+      "us-east-2")            
 } );
 ```
 2. Build the project
@@ -144,7 +145,7 @@ git commit -m "cross-account blue/green pipeline"
 git push 
 ```
 
-4. Deploy the Toolchain and Repository stacks
+4. Deploy the Toolchain stack
 ```
 npx cdk deploy ExampleMicroserviceToolchain --require-approval never
 ```
@@ -195,7 +196,7 @@ aws s3 rb examplemicroservicetoolc-examplemicroservicecodep-13r76jz2oozhx
 - Destroy the stacks and tje repository:
 
 ```
-#Remove all stacks including the bootstrap of the CodeDeploy
+#Remove all stacks including CodeDeployBootstrap
 npx cdk destroy "**"  # Includes the microservice deployments by the pipeline
 aws codecommit delete-repository --repository-name ExampleMicroservice
 ```

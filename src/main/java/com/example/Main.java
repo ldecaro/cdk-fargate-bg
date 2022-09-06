@@ -28,12 +28,12 @@ public class Main {
                 .appName(appName)
                 .env(envToolchain)
                 .gitRepo(Config.CODECOMMIT_REPO)
-                .build());
-
-        new BootstrapCodeDeploy(app, 
+                .build());    
+                
+        new CodeDeployBootstrap(app, 
+            "CodeDeployBootstrap",
             StackProps.builder()
                 .env(Util.makeEnv())
-                .stackName("AWSCodeDeployBootstrap")
                 .description("This stack includes resources that are used by AWS CodeDeploy")
                 .build());
 

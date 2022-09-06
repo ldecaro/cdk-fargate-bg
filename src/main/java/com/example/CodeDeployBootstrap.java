@@ -15,22 +15,22 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.Role;
 import software.constructs.Construct;
 
-public class BootstrapCodeDeploy extends Stack {
+public class CodeDeployBootstrap extends Stack {
     
-    public BootstrapCodeDeploy(Construct scope, StackProps props){
+    public CodeDeployBootstrap(Construct scope, String id, StackProps props){
 
-        super(scope, "BootstrapCodeDeploy", props);
-
-        CfnParameter cfnToolchainAccount = CfnParameter.Builder.create(this, "toolchainAccount")
+        super(scope, id, props);
+            
+        CfnParameter codeDeployToolchainAccount = CfnParameter.Builder.create(this, "toolchainAccount")
             .type("String")
             .description("The account number where the toolchain is deployed")
-            .build();
-        
-        String toolchainAccount =   cfnToolchainAccount.getValueAsString();
+            .build();  
 
-        Role crossAccountRole = Role.Builder.create(this, BootstrapCodeDeploy.getRoleName())
+        String toolchainAccount = codeDeployToolchainAccount.getValueAsString();
+
+        Role crossAccountRole = Role.Builder.create(this, CodeDeployBootstrap.getRoleName())
             .assumedBy(new AccountPrincipal( toolchainAccount ))
-            .roleName(BootstrapCodeDeploy.getRoleName())
+            .roleName(CodeDeployBootstrap.getRoleName())
             .description("CodeDeploy Execution Role for Blue Green Deploy")
             .path("/")
             .managedPolicies(Arrays.asList(
