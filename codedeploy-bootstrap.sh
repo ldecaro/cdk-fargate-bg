@@ -29,6 +29,8 @@ if [ $# -ge 1 ]; then
         npx cdk deploy CodeDeployBootstrap --parameters toolchainAccount=$CDK_DEPLOY_ACCOUNT --require-approval never
     elif [[ "$#" -eq 3 ]]; then
         npx cdk deploy CodeDeployBootstrap --parameters toolchainAccount=$3 --require-approval never
+    else
+        echo 1>&2 "${orange}We need one or three parameters to bootstrap AWS CodeDeploy: target_account/region --trust toolchain_account. Ex: ./codedeploy-bootstrap.sh 222222222222/us-east-1 --trust 111111111111${reset}"
     fi
 else
     echo 1>&2 "${orange}We need one or three parameters to bootstrap AWS CodeDeploy: target_account/region --trust toolchain_account. Ex: ./codedeploy-bootstrap.sh 222222222222/us-east-1 --trust 111111111111${reset}"

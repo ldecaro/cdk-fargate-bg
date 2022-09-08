@@ -10,11 +10,14 @@ import software.constructs.Construct;
 public interface Config {
     
 
-    public static final String TOOLCHAIN_REGION      = "us-east-1";
-    public static final String TOOLCHAIN_ACCOUNT     = "111111111111";
-    public static final String APP_NAME              = "ExampleMicroservice";
-    public static final String CODECOMMIT_REPO       = Config.APP_NAME;
-    public static final String CODECOMMIT_BRANCH     = "master";
+    public static final String APP_NAME                      = "ExampleMicroservice";
+    public static final String CODECOMMIT_REPO               = Config.APP_NAME;
+    public static final String CODECOMMIT_BRANCH             = "master";
+    public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
+    public static final String TOOLCHAIN_REGION              = "us-east-1";
+    public static final String MICROSERVICE_PREPROD_ACCOUNT  = "111111111111";
+    public static final String MICROSERVICE_PREPROD_REGION   = "us-east-1";
+    
 
     static Environment toolchainEnv(){
 	
@@ -29,8 +32,8 @@ public interface Config {
                 appName,
                 "PreProd",
                 DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-                Config.TOOLCHAIN_ACCOUNT,
-                Config.TOOLCHAIN_REGION)
+                Config.MICROSERVICE_PREPROD_ACCOUNT,
+                Config.MICROSERVICE_PREPROD_REGION)
     
                 //add more stages to your pipeline here                
         } );
