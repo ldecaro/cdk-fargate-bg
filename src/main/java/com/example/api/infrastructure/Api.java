@@ -1,5 +1,12 @@
 package com.example.api.infrastructure;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.constructs.Construct;
 
@@ -11,20 +18,30 @@ public class Api extends Construct {
     private String ecsTaskExecutionRole = null;
     private String appURL = null;
     
-    public Api(final Construct scope, final String id, ExampleStackProps props){
+    public Api(final Construct scope, final String id, final String appName, final String deploymentConfig, StackProps props){
 
         super(scope, id);
-        String appName          = props.getAppName();
         String strEnvType       =   id.split("Api")[id.split("Api").length-1];
 
-        DockerImageAsset.Builder
-        .create(scope, appName+"-container")
-        .directory("./target")
-        .build();
+        moveDockerfile();
+        
+        DockerImageAsset.Builder.create(scope, appName+"-container")
+            .directory("./target")
+            .build();
 
-        Network ecsNetwork = new Network(scope, appName+"-api-network", appName );
+        Network ecsNetwork = new Network(
+            scope, 
+            appName+"-api-network", 
+            appName );
 
-        ECS ecs = new ECS(scope, appName+"-api-ecs", strEnvType, ecsNetwork, props ); 
+        ECS ecs = new ECS(
+            scope, 
+            appName+"-api-ecs", 
+            appName, 
+            deploymentConfig, 
+            strEnvType, 
+            ecsNetwork, 
+            props ); 
         
         this.vpcArn =   ecsNetwork.getVpc().getVpcArn();
         this.ecsClusterName = ecs.getCluster().getClusterName();
@@ -52,4 +69,23 @@ public class Api extends Construct {
     public String getAppURL(){
         return this.appURL;
     }
+
+    /**
+     * Move dockerfile from the internal directory /runtine to $PROJECT_HOME/target
+     */
+    void moveDockerfile(){
+
+        if(! new File("./target/Dockerfile").exists() ){
+
+            String dest = "./target/Dockerfile";
+            String orig = "./target/classes/"+this.getClass().getName().substring(0, this.getClass().getName().lastIndexOf(".")).replace(".", "/");
+            orig += "/../runtime/Dockerfile";
+
+            try{
+                Files.copy(Paths.get(orig), Paths.get(dest), StandardCopyOption.REPLACE_EXISTING);
+            }catch(IOException ioe){
+                System.out.println("Could not copy Dockerfile from Green app from: "+orig+" to "+dest+". Msg: "+ioe.getMessage());
+            }    
+        }    
+    }    
 }

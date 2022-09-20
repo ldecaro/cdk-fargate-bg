@@ -13,14 +13,13 @@ public class Network extends Construct {
         super(scope,id);
 
         Vpc vpc = Vpc.Builder.create(this, appName+"-vpc") 
-        .maxAzs(2)
-        .natGateways(1)
-        .enableDnsHostnames(Boolean.TRUE)
-        .enableDnsSupport(Boolean.TRUE)            
-        .build();
+            .maxAzs(2)
+            .natGateways(1)
+            .enableDnsHostnames(Boolean.TRUE)
+            .enableDnsSupport(Boolean.TRUE)            
+            .build();
     
-        SecurityGroup sg    =   SecurityGroup.Builder
-            .create(this, appName+"-sg")
+        SecurityGroup sg    =   SecurityGroup.Builder.create(this, appName+"-sg")
             .vpc(vpc)
             .allowAllOutbound(Boolean.TRUE)
             .build();

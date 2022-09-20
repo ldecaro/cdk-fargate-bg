@@ -13,7 +13,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <cdk.version>2.20.0</cdk.version>
+        <cdk.version>2.31.1</cdk.version>
+        <component.dockerfile.location>src/main/java/com/example/api/runtime</component.dockerfile.location>
+        <component.codedeploy.location>src/main/java/com/example/codedeploy</component.codedeploy.location>
     </properties>
 
   <dependencies>
@@ -61,7 +63,7 @@
     <dependency>
         <groupId>software.amazon.awscdk</groupId>
         <artifactId>aws-cdk-lib</artifactId>
-        <version>2.13.0</version>
+        <version>${cdk.version}</version>
     </dependency>         
     <dependency>
         <groupId>software.constructs</groupId>
@@ -141,23 +143,39 @@
                 <version>3.0.2</version>
                 <executions>
                     <execution>
-                        <id>copy-resource-one</id>
+                        <id>copy-dockerfile</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${basedir}/target/classes</outputDirectory>
+                            <outputDirectory>${basedir}/target</outputDirectory>
                             <resources>
                                 <resource>
-                                    <directory>${basedir}</directory>
+                                    <directory>${basedir}/${component.dockerfile.location}</directory>
                                     <includes>
-                                        <include>app.properties</include>
+                                        <include>Dockerfile</include>
                                     </includes>
                                 </resource>
                             </resources>
-                        </configuration>
+                        </configuration> 
+                    </execution> 
+                    <execution>
+                        <id>copy-codedeploy</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/cdk.out/codedeploy</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${basedir}/${component.codedeploy.location}</directory>
+                                </resource>
+                            </resources>
+                        </configuration> 
                     </execution>
+
                 </executions>
             </plugin>        
             <plugin>

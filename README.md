@@ -48,28 +48,27 @@ This approach supports all combinations of deploying the microservice and its to
 
 ![Architecture](/imgs/single-account-single-region.png)
 
-Let's deploy the Example microservice in single account and single Region scenario. This can be accomplished in 5 steps:
-
+Let's deploy the Example microservice in single account and single Region scenario. This can be accomplished in 5 steps. If you already executed the cross-account scenario you should [cleanup](#cleanup) first:
 **1. Configure environment**
 
-Edit `src/main/java/com/example/Config.java` and update value of the following 2 properties, making sure they hold the same value, referencing the same account:
+Edit `src/main/java/com/example/BlueGreenConfig.java` and update value of the following 2 properties, making sure they hold the same value, referencing the same account:
 ```java
 
     public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
-    public static final String MICROSERVICE_PREPROD_ACCOUNT  = "111111111111";
+    public static final String MICROSERVICE_ACCOUNT          = "111111111111";
 ```
 
 **2. Push configuration changes to AWS CodeCommit**
 
 ```
-git add src/main/java/com/example/Config.java
+git add src/main/java/com/example/BlueGreenConfig.java
 git commit -m "initial config"
 git push
 ```
 
 **3. Build and install AWS CDK locally**
 ```
-npm install aws-cdk@2.31.1
+npm install
 mvn clean package
 npx cdk synth
 ```
@@ -104,28 +103,29 @@ npx cdk deploy ExampleMicroserviceToolchain
 
 ![Architecture](/imgs/cross-account-cross-region.png)
 
-Let's deploy the Example microservice in cross-account and cross-region scenario. This can be accomplished in 5 steps:
+Let's deploy the Example microservice in cross-account and cross-region scenario. This can be accomplished in 5 steps. If you already executed the single account and single region scenario you should [clean up](#cleanup) first:
 
 **1. Configure environment:**
 
-Edit `src/main/java/com/example/Config.java` and update value of the following 2 properties, making sure they hold the same value, referencing the same account:
+Edit `src/main/java/com/example/BlueGreenConfig.java` and update value of the following 2 properties, making sure they hold the same value, referencing the same account:
 ```java
 
     public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
     public static final String TOOLCHAIN_ACCOUNT             = "us-east-1";
-    public static final String MICROSERVICE_PREPROD_ACCOUNT  = "222222222222";
-    public static final String MICROSERVICE_PREPROD_REGION   = "us-east-2";
+    public static final String MICROSERVICE_ACCOUNT          = "222222222222";
+    public static final String MICROSERVICE_REGION           = "us-east-2";
 ```
 
-**2. Commit into repository:**
+**2. Push configuration changes to AWS CodeCommit**
 ```
-git add src/main/java/com/example/Config.java
+git add src/main/java/com/example/BlueGreenConfig.java
 git commit -m "cross-account config"
 git push 
 ```
 
-**3. Build the project**
+**3. Build and install AWS CDK locally**
 ```
+npm install
 mvn clean package
 npx cdk synth
 ```
@@ -143,6 +143,7 @@ For cross-account scenarios, the parameter ```--trust``` is required. For more i
  npx cdk bootstrap 111111111111/us-east-1
 ```
 ```
+ #make sure your aws credentials are pointing to account 222222222222
  npx cdk bootstrap 222222222222/us-east-2 --trust 111111111111
 ```
 
@@ -150,16 +151,19 @@ For cross-account scenarios, the parameter ```--trust``` is required. For more i
 
 In addition, AWS CodeDeploy uses a specific AWS IAM role to perform the blue/green deployment. *This role should exist in each account where the microservice is deployed.* As a convenience, a script for bootstrapping AWS CodeDeploy is provided. 
 
-Use the following command to bootstrap AWS CodeDeploy in one account:
+Use the following commands to bootstrap AWS CodeDeploy in accounts 111111111111 & 222222222222:
 ```
-./codedeploy-bootstrap.sh 222222222222/us-east-1 --trust 111111111111
+./codedeploy-bootstrap.sh 111111111111/us-east-1
+```
+```
+#make sure your aws credentials are pointing to account 222222222222
+./codedeploy-bootstrap.sh 222222222222/us-east-1 --trust 111111111111 --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 ```
 
 **5. Deploy the Toolchain stack**
 ```
 npx cdk deploy ExampleMicroserviceToolchain
 ```
-
 ### **The CI/CD Pipeline**
 
 The pipeline is deployed by a Construct named `BlueGreenPipeline`. As a convenience, the number of stages in the pipeline is dynamic therefore and it can support a different number of use cases.
@@ -175,27 +179,35 @@ new BlueGreenPipeline(
         appName));
 ```
 
-By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The class `com.example.Config` contains a method named `getStages` that can be updated to add or remove stages. Please find below an example to add a new stage named ```Prod```:
+By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The class `com.example.BlueGreenConfig` contains a method named `getStages` that can be updated to add or remove stages. Please find below an example to add a new stage named ```Prod```:
 
 ```java
-static List<DeploymentConfig> getStages(final Construct scope, final String appName){
+static List<BlueGreenConfig> getStages(final Construct scope, final String appName){
 
-    return  Arrays.asList( new DeploymentConfig[]{
+    return  Arrays.asList( new BlueGreenConfig[]{
 
-        Config.createDeploymentConfig(scope,
+        BlueGreenConfig.createDeploymentConfig(scope,
             appName,
             "PreProd",
-            DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            Config.MICROSERVICE_PREPROD_ACCOUNT,
-            Config.MICROSERVICE_PREPROD_REGION)
+            BlueGreenConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+            BlueGreenConfig.MICROSERVICE_ACCOUNT,
+            BlueGreenConfig.MICROSERVICE_REGION)
 
         //add more stages to your pipeline here    
-        Config.createDeploymentConfig(scope,
+        BlueGreenConfig.createDeploymentConfig(scope,
             appName,
             "Prod",
-            DeploymentConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            Config.MICROSERVICE_PROD_ACCOUNT,
-            Config.MICROSERVICE_PROD_REGION)                        
+            BlueGreenConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+            BlueGreenConfig.MICROSERVICE_ACCOUNT,
+            BlueGreenConfig.MICROSERVICE_REGION)   
+
+        //add a DR stage.                 
+        BlueGreenConfig.createDeploymentConfig(scope,
+            appName,
+            "DR",
+            BlueGreenConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+            BlueGreenConfig.MICROSERVICE_ACCOUNT,
+            "us-east-2")               
     } );
 }
 
@@ -206,13 +218,12 @@ The self-mutating capability implemented by CDK Pipelines makes it easy to add m
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
 
-## Destroy 
-
+## <a name="cleanup"></a> Clean up 
 
 
 - Clean the S3 bucket used to store the pipeline artifacts. Bucket name should be similar to the one from the example below:
 ```
-aws s3 rm --recursive s3://examplemicroservicetoolc-examplemicroservicecodep-13r76jz2oozhx
+aws s3 rm --recursive s3://examplemicroservicetoolc-examplemicroservicecodep-6cb6ua606lwi
 ```
 <!--
 - Manually delete any images inside the ECR repositories in the accounts and regions where the microservice was deployed. The repository names will follow the pattern ```cdk-hnb659fds-container-assets-ACCOUNT_NUMBER-REGION```
@@ -223,6 +234,8 @@ aws s3 rm --recursive s3://examplemicroservicetoolc-examplemicroservicecodep-13r
 #Remove all stacks including CodeDeployBootstrap
 npx cdk destroy "**"  # Includes the microservice deployments by the pipeline
 ```
+If, for some reason, the destroy fails, just wait for it to finish and try again.
+
 - Delete the repository:    
 
 ```

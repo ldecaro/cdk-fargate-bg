@@ -39,6 +39,8 @@ else
 fi
 if [ $? -eq 0 ]; then
    echo 1>&2 "CodeDeploy bootstrapped ${green}successfully${reset} in account $CDK_DEPLOY_ACCOUNT. Script executed in region: $CDK_DEPLOY_REGION"
+   unset CDK_DEPLOY_ACCOUNT
+   unset CDK_DEPLY_REGION
 else
    exit  $?
 fi

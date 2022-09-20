@@ -1,17 +1,29 @@
-package com.example.api.infrastructure;
+package com.example;
+
+import com.example.api.infrastructure.Api;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.constructs.Construct;
 
-public class Example extends Stack {
+public class ExampleComponent extends Stack {
 
-    public Example(Construct scope, String id, ExampleStackProps props ){
+    public ExampleComponent(Construct scope, String id, String appName, String deploymentConfig, StackProps props ){
         
         super(scope, props.getStackName(), props);
 
-        Api example = new Api(this, props.getAppName()+"Api"+this.getStackName().substring(this.getStackName().indexOf(props.getAppName())+props.getAppName().length()), props);
+        Api example = new Api(
+            this, 
+            appName+"Api"+this.getStackName().substring(this.getStackName().indexOf(appName)+appName.length()), 
+            appName, 
+            deploymentConfig, 
+            props);
         
+        //If your component has more resources, 
+        //ie. a dynamo table, a lambda implementing a dynamo stream and a monitoring capability
+        //they should be added here, as part of the component
+
         CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
             .value(example.getVpcArn())

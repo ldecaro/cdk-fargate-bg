@@ -1,17 +1,16 @@
 package com.example;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
-import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
 import software.amazon.awscdk.pipelines.CodePipelineActionFactoryResult;
 import software.amazon.awscdk.pipelines.CodePipelineSource;
 import software.amazon.awscdk.pipelines.FileSet;
 import software.amazon.awscdk.pipelines.ICodePipelineActionFactory;
-import software.amazon.awscdk.pipelines.IFileSetProducer;
 import software.amazon.awscdk.pipelines.ProduceActionOptions;
 import software.amazon.awscdk.pipelines.ShellStep;
 import software.amazon.awscdk.pipelines.StageDeployment;
@@ -29,10 +28,8 @@ import software.constructs.Construct;
 public class BlueGreenPipeline extends Construct {
 
     private Construct scope =   null;
-
-    private CodePipelineSource source   =   null;
     
-    public BlueGreenPipeline(Construct scope, String id, String appName, String gitRepo, List<DeploymentConfig> stages){
+    public BlueGreenPipeline(Construct scope, final String id, final String appName, final String gitRepo, final List<BlueGreenConfig> stages){
 
         super(scope,id);
         this.scope = scope;
@@ -41,11 +38,9 @@ public class BlueGreenPipeline extends Construct {
             appName, 
             gitRepo);  
 
-        Config.getStages(scope, appName)
-            .forEach(dc-> configureDeployStage(
+        stages.forEach(dc-> configureDeployStage(
                 dc, 
                 pipeline, 
-                source, 
                 appName));
     }
 
@@ -54,54 +49,54 @@ public class BlueGreenPipeline extends Construct {
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
             Repository.fromRepositoryName(scope, "codecommit-repository", repo ),
-            Config.CODECOMMIT_BRANCH,
+            BlueGreenConfig.CODECOMMIT_BRANCH,
             CodeCommitSourceOptions
                 .builder()
                 .trigger(CodeCommitTrigger.POLL)
                 .build());   
 
-        this.source = source;
+        // this.source = source;
         
         return CodePipeline.Builder.create(scope, appName+"-codepipeline")
-        .selfMutation(Boolean.TRUE)
-        .publishAssetsInParallel(Boolean.FALSE)
-        .dockerEnabledForSelfMutation(Boolean.TRUE)
-        .crossAccountKeys(Boolean.TRUE)
-        .synth(ShellStep.Builder.create(appName+"-synth")
-            .input(source)
-            .installCommands(Arrays.asList(
-                "npm install -g aws-cdk@2.31.1"
-                ))
-            .env(new HashMap<String,String>(){{
-                put("CDK_DEPLOY_ACCOUNT", ((Stack)scope).getAccount());
-                put("CDK_DEPLOY_REGION", ((Stack)scope).getRegion());
-            }})
-            .commands(Arrays.asList(
-                "mvn -B clean package",
-                "cd target && ls -d  */ | xargs rm -rf && ls -lah && cd .. ",
-                "cdk synth"))
-            .build())
-        .build(); 
+            .publishAssetsInParallel(Boolean.FALSE)
+            .dockerEnabledForSelfMutation(Boolean.TRUE)
+            .crossAccountKeys(Boolean.TRUE)
+            .synth(ShellStep.Builder.create(appName+"-synth")
+                .input(source)
+                .installCommands(Arrays.asList(
+                    "npm install"))
+                .commands(Arrays.asList(
+                    "mvn -B clean package",
+                    "npx cdk synth"))
+                .build())
+            .build(); 
     }    
 
-    void configureDeployStage(DeploymentConfig deployConfig, CodePipeline pipeline, CodePipelineSource source, String appName){
+    private void configureDeployStage(BlueGreenConfig deployConfig, CodePipeline pipeline, String appName){
    
         final String stageName =   deployConfig.getStageName();
         ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
             .input(pipeline.getCloudAssemblyFileSet())
-            .additionalInputs(new HashMap<String,IFileSetProducer>(){{
-                put("../source", source);
-            }})
             .primaryOutputDirectory("codedeploy")          
             .commands(configureCodeDeploy(appName, deployConfig ))
-            .build();    
+            .build();
 
-        Deployment deploy = new Deployment(scope, 
-            "Deploy-"+stageName, 
+        Stage stage = Stage.Builder.create(scope, "Deploy-"+stageName).build();
+
+        //CDK will use an inheritance mechanism implemented by the scoping system
+        // to associate this stack with the deploy stage
+        new ExampleComponent(
+            stage, 
+            appName+"-api-"+deployConfig.getStageName().toLowerCase(),
             appName,
-            deployConfig);
+            deployConfig.getDeployConfig(),
+            StackProps.builder()
+                .stackName(appName+deployConfig.getStageName())
+                .description("Microservice "+appName+"-"+deployConfig.getStageName().toLowerCase())
+                .env(deployConfig.getEnv())
+                .build());
 
-        StageDeployment stageDeployment = pipeline.addStage(deploy);
+        StageDeployment stageDeployment = pipeline.addStage(stage);
         
         stageDeployment.addPre(codeBuildPre);
         stageDeployment.addPost(new BlueGreenPipeline.CodeDeployStep(
@@ -118,25 +113,22 @@ public class BlueGreenPipeline extends Construct {
      * @param stageNumber
      * @return
      */
-    List<String> configureCodeDeploy(String appName, DeploymentConfig deploymentConfig){
+    private List<String> configureCodeDeploy(final String appName, final BlueGreenConfig deploymentConfig){
 
         final String stageName =   deploymentConfig.getStageName();
         final String account =   deploymentConfig.getEnv().getAccount();
         final String region =   deploymentConfig.getEnv().getRegion();
-
         return Arrays.asList(
 
-            "mkdir codedeploy",
             "ls -l",
-            "REPO_NAME=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "TAG_NAME=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
-            "export REPO_NAME",
-            "export TAG_NAME",
-            "echo $REPO_NAME",
-            "echo $TAG_NAME",
-            "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/$REPO_NAME:$TAG_NAME\" > codedeploy/imageDetail.json",                    
-            "sed 's#APPLICATION#"+appName+"#g' ../source/codedeploy/template-appspec.yaml >> codedeploy/appspec.yaml",
-            "sed 's#APPLICATION#"+appName+"#g' ../source/codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+appName+"-"+stageName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' >> codedeploy/taskdef.json",
+            "ls -l codedeploy",
+            "repo_name=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "tag_name=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "echo ${repo_name}",
+            "echo ${tag_name}",
+            "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/${repo_name}:${tag_name}\" > codedeploy/imageDetail.json",                    
+            "sed 's#APPLICATION#"+appName+"#g' codedeploy/template-appspec.yaml > codedeploy/appspec.yaml",
+            "sed 's#APPLICATION#"+appName+"#g' codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+appName+"-"+stageName+"#g' | sed 's#fargate-task-definition#"+appName+"#g' > codedeploy/taskdef.json",
             "cat codedeploy/appspec.yaml",
             "cat codedeploy/taskdef.json",
             "cat codedeploy/imageDetail.json"
@@ -145,12 +137,12 @@ public class BlueGreenPipeline extends Construct {
        
     static class CodeDeployStep extends Step implements ICodePipelineActionFactory{
 
-        FileSet fileSet;
-        IRole codeDeployRole;
-        IEcsDeploymentGroup dg;
-        String envType;
+        FileSet fileSet =   null;
+        IRole codeDeployRole    =   null;
+        IEcsDeploymentGroup dg  =   null;
+        String envType  =   null;
 
-        public CodeDeployStep(String id, String envType, FileSet fileSet, DeploymentConfig deploymentConfig){
+        public CodeDeployStep(String id, String envType, FileSet fileSet, BlueGreenConfig deploymentConfig){
             super(id);
             this.fileSet    =   fileSet;
             this.codeDeployRole =   deploymentConfig.getCodeDeployRole();

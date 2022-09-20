@@ -1,25 +1,22 @@
 package com.example;
 
 import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.constructs.Construct;
 
 public class Toolchain extends Stack {
 
-    public Toolchain(Construct scope, String id, final ToolchainStackProps props) throws Exception {
+    public Toolchain(final Construct scope, final String id, final String appName, final String gitRepo, final StackProps props) throws Exception {
 
         super(scope, id, props);
-
-        String appName  =   props.getAppName();
-        String gitRepo  =   props.getGitRepo();
 
         new BlueGreenPipeline(
             this,
             "BlueGreenPipeline", 
             appName, 
             gitRepo, 
-            Config.getStages(
+            BlueGreenConfig.getStages(
                 scope, 
                 appName));
-
     }
 }
