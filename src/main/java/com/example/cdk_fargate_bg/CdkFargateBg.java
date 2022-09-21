@@ -1,15 +1,15 @@
-package com.example;
+package com.example.cdk_fargate_bg;
 
-import com.example.api.infrastructure.Api;
+import com.example.cdk_fargate_bg.api.infrastructure.Api;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.constructs.Construct;
 
-public class ExampleComponent extends Stack {
+public class CdkFargateBg extends Stack {
 
-    public ExampleComponent(Construct scope, String id, String appName, String deploymentConfig, StackProps props ){
+    public CdkFargateBg(Construct scope, String id, String appName, String deploymentConfig, StackProps props ){
         
         super(scope, props.getStackName(), props);
 

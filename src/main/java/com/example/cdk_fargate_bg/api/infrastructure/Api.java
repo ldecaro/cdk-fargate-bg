@@ -1,4 +1,4 @@
-package com.example.api.infrastructure;
+package com.example.cdk_fargate_bg.api.infrastructure;
 
 import java.io.File;
 import java.io.IOException;

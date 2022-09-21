@@ -1,7 +1,9 @@
-package com.example;
+package com.example.toolchain;
 
 import java.util.Arrays;
 import java.util.List;
+
+import com.example.bootstrap.CodeDeployBootstrap;
 
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
@@ -19,15 +21,7 @@ import software.constructs.Construct;
  * stage of the BlueGreenPipeline. As a convenience, method getStages may
  * be updated to create Production and DR environments.
  */
-public class BlueGreenConfig extends Stack {  
-
-    public static final String APP_NAME                      = "ExampleMicroservice";
-    public static final String CODECOMMIT_REPO               = BlueGreenConfig.APP_NAME;
-    public static final String CODECOMMIT_BRANCH             = "master";
-    public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
-    public static final String TOOLCHAIN_REGION              = "us-east-1";
-    public static final String MICROSERVICE_ACCOUNT          = "111111111111";
-    public static final String MICROSERVICE_REGION           = "us-east-1";
+public class BlueGreenPipelineConfig extends Stack {  
 
 
     public static final String DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery1Minutes";
@@ -35,29 +29,19 @@ public class BlueGreenConfig extends Stack {
     public static final String DEPLOY_CANARY_10_PERCENT_EVERY_5_MINUTES = "CodeDeployDefault.ECSCanary10percent5Minutes";
     public static final String DEPLOY_CANARY_10_PERCENT_15_MINUTES = "CodeDeployDefault.ECSCanary10percent15Minutes";
     public static final String DEPLOY_ALL_AT_ONCE = "CodeDeployDefault.ECSAllAtOnce";     
+  
 
-    private String deployConfig     =   null;
-    private Environment env         =   null;
-    private IEcsDeploymentGroup dg  =   null;
-    private IRole codeDeployRole    =   null;
-    private String stageName        =   null;    
+    static List<BlueGreenPipelineConfig> getStages(final Construct scope, final String appName){
 
-    static Environment toolchainEnv(){
-	
-		return Environment.builder().account(TOOLCHAIN_ACCOUNT).region(TOOLCHAIN_REGION).build();
-	}    
+        return  Arrays.asList( new BlueGreenPipelineConfig[]{
 
-    static List<BlueGreenConfig> getStages(final Construct scope, final String appName){
-
-        return  Arrays.asList( new BlueGreenConfig[]{
-
-            BlueGreenConfig.createDeploymentConfig(
+            BlueGreenPipelineConfig.createDeploymentConfig(
                 scope,
                 appName,
                 "PreProd",
-                BlueGreenConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-                BlueGreenConfig.MICROSERVICE_ACCOUNT,
-                BlueGreenConfig.MICROSERVICE_REGION)
+                BlueGreenPipelineConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+                Toolchain.MICROSERVICE_ACCOUNT,
+                Toolchain.MICROSERVICE_REGION)
     
                 //add more stages to your pipeline here                
                 // ,
@@ -77,11 +61,11 @@ public class BlueGreenConfig extends Stack {
                 //     BlueGreenConfig.MICROSERVICE_ACCOUNT,
                 //     BlueGreenConfig.MICROSERVICE_REGION)                            
         } );
-    }
+    }    
 
-    private static BlueGreenConfig createDeploymentConfig(final Construct scope, final String appName, final String stageName, final String deployConfig, final String account, final String region){
+    private static BlueGreenPipelineConfig createDeploymentConfig(final Construct scope, final String appName, final String stageName, final String deployConfig, final String account, final String region){
 
-        return new BlueGreenConfig(
+        return new BlueGreenPipelineConfig(
             scope,
             appName,            
             stageName,
@@ -93,9 +77,16 @@ public class BlueGreenConfig extends Stack {
                     .build())
                 .stackName(appName+"CodeDeploy"+stageName)
                 .build());
-    }      
+    }    
+    
+    private String deployConfig     =   null;
+    private Environment env         =   null;
+    private IEcsDeploymentGroup dg  =   null;
+    private IRole codeDeployRole    =   null;
+    private String stageName        =   null;     
 
-    public BlueGreenConfig(final Construct scope, final String appName, final String stageName, final String deploymentConfig, StackProps props) {
+    public BlueGreenPipelineConfig(final Construct scope, final String appName, final String stageName, final String deploymentConfig, StackProps props) {
+
         super(scope, props.getStackName(), props);
 
         this.deployConfig   =   deploymentConfig;

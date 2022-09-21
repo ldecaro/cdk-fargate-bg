@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>cdk-fargate-bg</artifactId>
+    <artifactId>cdk_fargate_bg</artifactId>
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
     <name>cdk-fargate-bg</name>
@@ -14,8 +14,8 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <cdk.version>2.31.1</cdk.version>
-        <component.dockerfile.location>src/main/java/com/example/api/runtime</component.dockerfile.location>
-        <component.codedeploy.location>src/main/java/com/example/codedeploy</component.codedeploy.location>
+        <component.dockerfile.location>src/main/java/com/example/cdk-fargate-bg/api/runtime</component.dockerfile.location>
+        <component.codedeploy.location>src/main/java/com/example/cdk-fargate-bg/toolchain/codedeploy</component.codedeploy.location>
     </properties>
 
   <dependencies>
@@ -77,7 +77,8 @@
             <resource>
                 <directory>src/main/java</directory>
                 <excludes>
-                <exclude>**/*.java</exclude>
+                    <exclude>**/*.java</exclude>
+                    <exclude>**/codedeploy/*</exclude>
                 </excludes>
             </resource>
         </resources>    
@@ -175,7 +176,6 @@
                             </resources>
                         </configuration> 
                     </execution>
-
                 </executions>
             </plugin>        
             <plugin>
@@ -197,12 +197,15 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib</classpathPrefix>
-                            <mainClass>com.example.api.runtime.Main</mainClass>
+                            <mainClass>${groupId}.${artifactId}.api.runtime.Main</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Class-Path>lib/*</Class-Path>
                         </manifestEntries>
                     </archive>
+                    <excludes>
+                        <exclude>**/runtime-bootstrap/*</exclude>
+                    </excludes>
                 </configuration>
             </plugin>  
           <!-- Unpack all dependencies inside -->

@@ -1,4 +1,4 @@
-package com.example;
+package com.example.bootstrap;
 
 import java.util.Arrays;
 import java.util.HashMap;

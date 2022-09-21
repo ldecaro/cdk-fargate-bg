@@ -1,4 +1,4 @@
-package com.example.api.runtime;
+package com.example.cdk_fargate_bg.api.runtime;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

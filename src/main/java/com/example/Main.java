@@ -1,5 +1,9 @@
 package com.example;
 
+import com.example.bootstrap.CodeDeployBootstrap;
+import com.example.toolchain.BlueGreenPipelineConfig;
+import com.example.toolchain.Toolchain;
+
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Aws;
 import software.amazon.awscdk.Environment;
@@ -23,15 +27,15 @@ public class Main {
 
         App  app = new App();
 
-        String appName =    BlueGreenConfig.APP_NAME;
+        String appName =    Toolchain.APP_NAME;
         
-        Environment envToolchain =   BlueGreenConfig.toolchainEnv();
+        Environment envToolchain =   Toolchain.toolchainEnv();
 
         new Toolchain(
             app, 
             appName+"Toolchain",
             appName,
-            BlueGreenConfig.CODECOMMIT_REPO,
+            Toolchain.CODECOMMIT_REPO,
             StackProps.builder()
                 .env(envToolchain)
                 .build());    

@@ -1,7 +1,9 @@
-package com.example;
+package com.example.toolchain;
 
 import java.util.Arrays;
 import java.util.List;
+
+import com.example.cdk_fargate_bg.CdkFargateBg;
 
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
@@ -29,7 +31,7 @@ public class BlueGreenPipeline extends Construct {
 
     private Construct scope =   null;
     
-    public BlueGreenPipeline(Construct scope, final String id, final String appName, final String gitRepo, final List<BlueGreenConfig> stages){
+    public BlueGreenPipeline(Construct scope, final String id, final String appName, final String gitRepo, final List<BlueGreenPipelineConfig> stages){
 
         super(scope,id);
         this.scope = scope;
@@ -49,7 +51,7 @@ public class BlueGreenPipeline extends Construct {
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
             Repository.fromRepositoryName(scope, "codecommit-repository", repo ),
-            BlueGreenConfig.CODECOMMIT_BRANCH,
+            Toolchain.CODECOMMIT_BRANCH,
             CodeCommitSourceOptions
                 .builder()
                 .trigger(CodeCommitTrigger.POLL)
@@ -72,7 +74,7 @@ public class BlueGreenPipeline extends Construct {
             .build(); 
     }    
 
-    private void configureDeployStage(BlueGreenConfig deployConfig, CodePipeline pipeline, String appName){
+    private void configureDeployStage(BlueGreenPipelineConfig deployConfig, CodePipeline pipeline, String appName){
    
         final String stageName =   deployConfig.getStageName();
         ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
@@ -85,7 +87,7 @@ public class BlueGreenPipeline extends Construct {
 
         //CDK will use an inheritance mechanism implemented by the scoping system
         // to associate this stack with the deploy stage
-        new ExampleComponent(
+        new CdkFargateBg(
             stage, 
             appName+"-api-"+deployConfig.getStageName().toLowerCase(),
             appName,
@@ -113,7 +115,7 @@ public class BlueGreenPipeline extends Construct {
      * @param stageNumber
      * @return
      */
-    private List<String> configureCodeDeploy(final String appName, final BlueGreenConfig deploymentConfig){
+    private List<String> configureCodeDeploy(final String appName, final BlueGreenPipelineConfig deploymentConfig){
 
         final String stageName =   deploymentConfig.getStageName();
         final String account =   deploymentConfig.getEnv().getAccount();
@@ -142,7 +144,7 @@ public class BlueGreenPipeline extends Construct {
         IEcsDeploymentGroup dg  =   null;
         String envType  =   null;
 
-        public CodeDeployStep(String id, String envType, FileSet fileSet, BlueGreenConfig deploymentConfig){
+        public CodeDeployStep(String id, String envType, FileSet fileSet, BlueGreenPipelineConfig deploymentConfig){
             super(id);
             this.fileSet    =   fileSet;
             this.codeDeployRole =   deploymentConfig.getCodeDeployRole();
