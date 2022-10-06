@@ -28,8 +28,8 @@ public class Toolchain extends Stack {
             this,
             "BlueGreenPipeline", 
             appName, 
-            gitRepo, 
-            BlueGreenPipelineConfig.getStages(
+            gitRepo,
+            BlueGreenDeployConfig.getStages(
                 scope, 
                 appName));
     }

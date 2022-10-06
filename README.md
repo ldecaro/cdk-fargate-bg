@@ -69,7 +69,7 @@ git commit -m "initial config"
 git push
 ```
 
-**3. Build and install AWS CDK locally**
+**3. Install AWS CDK locally and Synth**
 ```
 npm install
 mvn clean package
@@ -106,7 +106,7 @@ npx cdk deploy ExampleMicroserviceToolchain
 
 If you already executed the single account and single region scenario you should [clean up](#cleanup) first.
 
-![Architecture](/imgs/cross-account-cross-region.png)
+![Architecture](/imgs/cross-account-cross-region-2.png)
 
 Let's deploy the Example microservice in cross-account and cross-region scenario. This can be accomplished in 5 steps:
 
@@ -128,7 +128,7 @@ git commit -m "cross-account config"
 git push 
 ```
 
-**3. Build and install AWS CDK locally**
+**3. Install AWS CDK locally and Synth**
 ```
 npm install
 mvn clean package
@@ -169,7 +169,7 @@ Use the following commands to bootstrap AWS CodeDeploy in accounts 111111111111 
 ```
 npx cdk deploy ExampleMicroserviceToolchain
 ```
-### **The CI/CD Pipeline**
+## **The CI/CD Pipeline**
 
 The pipeline is deployed by a Construct named `BlueGreenPipeline`. As a convenience, the number of stages in the pipeline is dynamic therefore and it can support a different number of use cases.
 
@@ -184,34 +184,34 @@ new BlueGreenPipeline(
         appName));
 ```
 
-By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The class `com.example.toolchain.BlueGreenPipelineConfig` contains a method named `getStages` that can be updated to add or remove stages. Please find below an example to add a new stage named ```Prod```:
+By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The class located in `src/main/java/com/example/toolchain/BlueGreenDeployConfig.java` contains a method named `getStages` that can be updated to add or remove stages. Please find below an example to add two new stages, ```Prod``` and ```DR```:
 
 ```java
-static List<BlueGreenPipelineConfig> getStages(final Construct scope, final String appName){
+static List<BlueGreenDeployConfig> getStages(final Construct scope, final String appName){
 
-    return  Arrays.asList( new BlueGreenPipelineConfig[]{
+    return  Arrays.asList( new BlueGreenDeployConfig[]{
 
-        BlueGreenPipelineConfig.createDeploymentConfig(scope,
+        BlueGreenDeployConfig.createDeploymentConfig(scope,
             appName,
             "PreProd",
-            BlueGreenPipelineConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            BlueGreenPipelineConfig.MICROSERVICE_ACCOUNT,
-            BlueGreenPipelineConfig.MICROSERVICE_REGION)
+            BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+            BlueGreenDeployConfig.MICROSERVICE_ACCOUNT,
+            BlueGreenDeployConfig.MICROSERVICE_REGION)
 
         //add more stages to your pipeline here    
-        BlueGreenPipelineConfig.createDeploymentConfig(scope,
+        BlueGreenDeployConfig.createDeploymentConfig(scope,
             appName,
             "Prod",
-            BlueGreenPipelineConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            BlueGreenPipelineConfig.MICROSERVICE_ACCOUNT,
-            BlueGreenPipelineConfig.MICROSERVICE_REGION)   
+            BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+            BlueGreenDeployConfig.MICROSERVICE_ACCOUNT,
+            BlueGreenDeployConfig.MICROSERVICE_REGION)   
 
         //add a DR stage.                 
-        BlueGreenPipelineConfig.createDeploymentConfig(scope,
+        BlueGreenDeployConfig.createDeploymentConfig(scope,
             appName,
             "DR",
-            BlueGreenPipelineConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            BlueGreenPipelineConfig.MICROSERVICE_ACCOUNT,
+            BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+            BlueGreenDeployConfig.MICROSERVICE_ACCOUNT,
             "us-east-2")               
     } );
 }
@@ -223,6 +223,11 @@ The self-mutating capability implemented by CDK Pipelines makes it easy to add m
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
 
+## **Stacks Created**
+
+Once the project is deployed and the pipeline successfully finished AWS Cloud Formation will contain a set of Stacks that got created. In the image below, we can see that, for the Example Microservice we needed 2 Stacks: ```CodeDeployBootstrap``` and ```ExampleMicroservicePreProd```.
+
+<img src="/imgs/stacks.png" width=25% >
 ## <a name="cleanup"></a> Clean up 
 
 

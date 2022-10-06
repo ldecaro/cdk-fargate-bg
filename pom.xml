@@ -4,18 +4,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>cdk_fargate_bg</artifactId>
+    <artifactId>cdk-fargate-bg</artifactId>
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
-    <name>cdk-fargate-bg</name>
+    <name>cdk_fargate_bg</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <cdk.version>2.31.1</cdk.version>
-        <component.dockerfile.location>src/main/java/com/example/cdk-fargate-bg/api/runtime</component.dockerfile.location>
-        <component.codedeploy.location>src/main/java/com/example/cdk-fargate-bg/toolchain/codedeploy</component.codedeploy.location>
+        <component.dockerfile.location>src/main/java/com/example/${project.name}/api/runtime</component.dockerfile.location>
+        <component.codedeploy.location>src/main/java/com/example/toolchain/codedeploy</component.codedeploy.location>
     </properties>
 
   <dependencies>
@@ -197,7 +197,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib</classpathPrefix>
-                            <mainClass>${groupId}.${artifactId}.api.runtime.Main</mainClass>
+                            <mainClass>${project.groupId}.${project.name}.api.runtime.Main</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Class-Path>lib/*</Class-Path>
@@ -232,7 +232,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.example.Main</mainClass>            
+                    <mainClass>com.example.App</mainClass>            
                 </configuration>
             </plugin>              
         </plugins>

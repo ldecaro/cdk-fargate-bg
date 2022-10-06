@@ -6,6 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+import com.example.cdk_fargate_bg.compute.infrastructure.ECS;
+import com.example.cdk_fargate_bg.network.infrastructure.Network;
+
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ecr.assets.DockerImageAsset;
 import software.constructs.Construct;

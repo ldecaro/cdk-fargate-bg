@@ -17,11 +17,11 @@ import software.amazon.awscdk.services.iam.Role;
 import software.constructs.Construct;
 
 /**
- * Each instance of BlueGreenConfig will configure a different deployment
+ * Each instance of BlueGreenDeployConfig will configure a different deployment
  * stage of the BlueGreenPipeline. As a convenience, method getStages may
  * be updated to create Production and DR environments.
  */
-public class BlueGreenPipelineConfig extends Stack {  
+public class BlueGreenDeployConfig extends Stack {  //BlueGreenDeployConfig
 
 
     public static final String DEPLOY_LINEAR_10_PERCENT_EVERY_1_MINUTES = "CodeDeployDefault.ECSLinear10PercentEvery1Minutes";
@@ -31,41 +31,41 @@ public class BlueGreenPipelineConfig extends Stack {
     public static final String DEPLOY_ALL_AT_ONCE = "CodeDeployDefault.ECSAllAtOnce";     
   
 
-    static List<BlueGreenPipelineConfig> getStages(final Construct scope, final String appName){
+    static List<BlueGreenDeployConfig> getStages(final Construct scope, final String appName){
 
-        return  Arrays.asList( new BlueGreenPipelineConfig[]{
+        return  Arrays.asList( new BlueGreenDeployConfig[]{
 
-            BlueGreenPipelineConfig.createDeploymentConfig(
+            BlueGreenDeployConfig.createDeploymentConfig(
                 scope,
                 appName,
                 "PreProd",
-                BlueGreenPipelineConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+                BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
                 Toolchain.MICROSERVICE_ACCOUNT,
                 Toolchain.MICROSERVICE_REGION)
     
                 //add more stages to your pipeline here                
                 // ,
-                // BlueGreenConfig.createDeploymentConfig(
+                // BlueGreenDeployConfig.createDeploymentConfig(
                 //     scope,
                 //     appName,
                 //     "Prod",
-                //     BlueGreenConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-                //     BlueGreenConfig.MICROSERVICE_ACCOUNT,
-                //     BlueGreenConfig.MICROSERVICE_REGION)   
+                //     BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+                //     Toolchain.MICROSERVICE_ACCOUNT,
+                //     Toolchain.MICROSERVICE_REGION)   
                 // ,
-                // BlueGreenConfig.createDeploymentConfig(
+                // BlueGreenDeployConfig.createDeploymentConfig(
                 //     scope,
                 //     appName,
                 //     "DR",
-                //     BlueGreenConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-                //     BlueGreenConfig.MICROSERVICE_ACCOUNT,
-                //     BlueGreenConfig.MICROSERVICE_REGION)                            
+                //     BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
+                //     Toolchain.MICROSERVICE_ACCOUNT,
+                //     Toolchain.MICROSERVICE_REGION)                            
         } );
     }    
 
-    private static BlueGreenPipelineConfig createDeploymentConfig(final Construct scope, final String appName, final String stageName, final String deployConfig, final String account, final String region){
+    private static BlueGreenDeployConfig createDeploymentConfig(final Construct scope, final String appName, final String stageName, final String deployConfig, final String account, final String region){
 
-        return new BlueGreenPipelineConfig(
+        return new BlueGreenDeployConfig(
             scope,
             appName,            
             stageName,
@@ -85,7 +85,7 @@ public class BlueGreenPipelineConfig extends Stack {
     private IRole codeDeployRole    =   null;
     private String stageName        =   null;     
 
-    public BlueGreenPipelineConfig(final Construct scope, final String appName, final String stageName, final String deploymentConfig, StackProps props) {
+    public BlueGreenDeployConfig(final Construct scope, final String appName, final String stageName, final String deploymentConfig, StackProps props) {
 
         super(scope, props.getStackName(), props);
 

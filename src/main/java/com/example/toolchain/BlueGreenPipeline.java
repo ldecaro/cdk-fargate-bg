@@ -31,7 +31,7 @@ public class BlueGreenPipeline extends Construct {
 
     private Construct scope =   null;
     
-    public BlueGreenPipeline(Construct scope, final String id, final String appName, final String gitRepo, final List<BlueGreenPipelineConfig> stages){
+    public BlueGreenPipeline(Construct scope, final String id, final String appName, final String gitRepo, final List<BlueGreenDeployConfig> stages){
 
         super(scope,id);
         this.scope = scope;
@@ -46,7 +46,6 @@ public class BlueGreenPipeline extends Construct {
                 appName));
     }
 
-
     CodePipeline createPipeline(final String appName, String repo){
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
@@ -56,8 +55,6 @@ public class BlueGreenPipeline extends Construct {
                 .builder()
                 .trigger(CodeCommitTrigger.POLL)
                 .build());   
-
-        // this.source = source;
         
         return CodePipeline.Builder.create(scope, appName+"-codepipeline")
             .publishAssetsInParallel(Boolean.FALSE)
@@ -74,7 +71,7 @@ public class BlueGreenPipeline extends Construct {
             .build(); 
     }    
 
-    private void configureDeployStage(BlueGreenPipelineConfig deployConfig, CodePipeline pipeline, String appName){
+    private void configureDeployStage(BlueGreenDeployConfig deployConfig, CodePipeline pipeline, String appName){
    
         final String stageName =   deployConfig.getStageName();
         ShellStep codeBuildPre = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
@@ -115,7 +112,7 @@ public class BlueGreenPipeline extends Construct {
      * @param stageNumber
      * @return
      */
-    private List<String> configureCodeDeploy(final String appName, final BlueGreenPipelineConfig deploymentConfig){
+    private List<String> configureCodeDeploy(final String appName, final BlueGreenDeployConfig deploymentConfig){
 
         final String stageName =   deploymentConfig.getStageName();
         final String account =   deploymentConfig.getEnv().getAccount();
@@ -144,7 +141,7 @@ public class BlueGreenPipeline extends Construct {
         IEcsDeploymentGroup dg  =   null;
         String envType  =   null;
 
-        public CodeDeployStep(String id, String envType, FileSet fileSet, BlueGreenPipelineConfig deploymentConfig){
+        public CodeDeployStep(String id, String envType, FileSet fileSet, BlueGreenDeployConfig deploymentConfig){
             super(id);
             this.fileSet    =   fileSet;
             this.codeDeployRole =   deploymentConfig.getCodeDeployRole();

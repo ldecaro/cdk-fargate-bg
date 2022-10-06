@@ -1,10 +1,8 @@
 package com.example;
 
 import com.example.bootstrap.CodeDeployBootstrap;
-import com.example.toolchain.BlueGreenPipelineConfig;
 import com.example.toolchain.Toolchain;
 
-import software.amazon.awscdk.App;
 import software.amazon.awscdk.Aws;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
@@ -21,11 +19,11 @@ import software.amazon.awscdk.StackProps;
  * 
  * See prerequisites (README.md) before running the application.
  */
-public class Main {
+public class App extends software.amazon.awscdk.App {
 
     public static void main(String args[]) throws Exception {
 
-        App  app = new App();
+        App app = new App();
 
         String appName =    Toolchain.APP_NAME;
         
