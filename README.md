@@ -54,26 +54,27 @@ Let's deploy the Example microservice in single account and single Region scenar
 
 **1. Configure environment**
 
-Edit `src/main/java/com/example/toolchain/Toolchain.java` and update value of the following 2 properties, making sure they hold the same value, referencing the same account:
+Edit `src/main/java/com/example/App.java` and update value of the following 2 properties: account number and region:
 ```java
 
     public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
-    public static final String MICROSERVICE_ACCOUNT          = "111111111111";
+    public static final String TOOLCHAIN_REGION              = "us-east-1";
 ```
 
-**2. Push configuration changes to AWS CodeCommit**
-
-```
-git add src/main/java/com/example/toolchain/Toolchain.java
-git commit -m "initial config"
-git push
-```
-
-**3. Install AWS CDK locally and Synth**
+**2. Install AWS CDK locally and Synth**
 ```
 npm install
 mvn clean package
 npx cdk synth
+```
+
+**3. Push configuration changes to AWS CodeCommit**
+
+```
+git add src/main/java/com/example/toolchain/Toolchain.java
+git add cdk.context.json
+git commit -m "initial config"
+git push codecommit://ExampleMicroservice --all
 ```
 
 **4. One-Time Bootstrap**
@@ -112,27 +113,34 @@ Let's deploy the Example microservice in cross-account and cross-region scenario
 
 **1. Configure environment:**
 
-Edit `src/main/java/com/example/toolchain/Toolchain.java` and update value of the following 2 properties, making sure they hold the same value, referencing the same account:
+Edit `src/main/java/com/example/App.java` and update values of the environment of the toolchain account:
 ```java
 
     public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
-    public static final String TOOLCHAIN_ACCOUNT             = "us-east-1";
-    public static final String MICROSERVICE_ACCOUNT          = "222222222222";
-    public static final String MICROSERVICE_REGION           = "us-east-2";
+    public static final String TOOLCHAIN_REGION              = "us-east-1";
 ```
 
-**2. Push configuration changes to AWS CodeCommit**
-```
-git add src/main/java/com/example/toolchain/Toolchain.java
-git commit -m "cross-account config"
-git push 
+Edit `src/main/java/com/example/toolchain/BlueGreenPipeline.java` and update values of the environment of the microservice:
+```java
+
+    public static final String COMPONENT_ACCOUNT          = "222222222222";
+    public static final String COMPONENT_REGION           = "us-east-2";
 ```
 
-**3. Install AWS CDK locally and Synth**
+**2. Install AWS CDK locally and Synth**
 ```
 npm install
 mvn clean package
 npx cdk synth
+```
+
+**3. Push configuration changes to AWS CodeCommit**
+```
+git add src/main/java/com/example/toolchain/Toolchain.java
+git add src/main/java/com/example/App.java
+git add cdk.context.json
+git commit -m "cross-account config"
+git push codecommit://ExampleMicroservice --all
 ```
 
 **4. One-Time Bootstrap**
@@ -156,7 +164,7 @@ For cross-account scenarios, the parameter ```--trust``` is required. For more i
 
 In addition, AWS CodeDeploy uses a specific AWS IAM role to perform the blue/green deployment. *This role should exist in each account where the microservice is deployed.* As a convenience, a script for bootstrapping AWS CodeDeploy is provided. 
 
-Use the following commands to bootstrap AWS CodeDeploy in accounts 111111111111 & 222222222222:
+Use the following commands to bootstrap AWS CodeDeploy in accounts 111111111111 (Toolchain) & 222222222222 (Component):
 ```
 ./codedeploy-bootstrap.sh 111111111111/us-east-1
 ```
@@ -171,49 +179,49 @@ npx cdk deploy ExampleMicroserviceToolchain
 ```
 ## **The CI/CD Pipeline**
 
-The pipeline is deployed by a Construct named `BlueGreenPipeline`. As a convenience, the number of stages in the pipeline is dynamic therefore and it can support a different number of use cases.
-
+The pipeline is defined by a Construct named `BlueGreenPipeline`. To create a pipeline with a single deployment stage all you need is the CodeCommit repository information as shown below:
 ```java
 new BlueGreenPipeline(
     this,
-    "BlueGreenPipeline", 
-    appName, 
-    gitRepo, 
-    Config.getStages(
-        scope, 
-        appName));
+    "BlueGreenPipeline",
+    Toolchain.CODECOMMIT_REPO,
+    Toolchain.CODECOMMIT_BRANCH);
 ```
 
-By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The class located in `src/main/java/com/example/toolchain/BlueGreenDeployConfig.java` contains a method named `getStages` that can be updated to add or remove stages. Please find below an example to add two new stages, ```Prod``` and ```DR```:
+By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The `BlueGreenPipeline` contains a constructor that creates the deployment stages. Update the constructor of the class `src/main/java/com/example/toolchain/BlueGreenPipeline.java` to add more deployment stages. Please find below an example to add two new stages, ```Prod``` and ```DR```:
 
 ```java
-static List<BlueGreenDeployConfig> getStages(final Construct scope, final String appName){
+        BlueGreenDeployConfig preProd = BlueGreenDeployConfig.createDeploymentConfig(
+            (Construct)this, 
+            "PreProd", 
+            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+                Environment.builder()
+                    .account(BlueGreenPipeline.COMPONENT_ACCOUNT)
+                    .region(BlueGreenPipeline.COMPONENT_REGION)
+                .build()  
+            );
 
-    return  Arrays.asList( new BlueGreenDeployConfig[]{
-
-        BlueGreenDeployConfig.createDeploymentConfig(scope,
-            appName,
-            "PreProd",
-            BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            BlueGreenDeployConfig.MICROSERVICE_ACCOUNT,
-            BlueGreenDeployConfig.MICROSERVICE_REGION)
-
-        //add more stages to your pipeline here    
-        BlueGreenDeployConfig.createDeploymentConfig(scope,
-            appName,
-            "Prod",
-            BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            BlueGreenDeployConfig.MICROSERVICE_ACCOUNT,
-            BlueGreenDeployConfig.MICROSERVICE_REGION)   
-
-        //add a DR stage.                 
-        BlueGreenDeployConfig.createDeploymentConfig(scope,
-            appName,
-            "DR",
-            BlueGreenDeployConfig.DEPLOY_LINEAR_10_PERCENT_EVERY_3_MINUTES,
-            BlueGreenDeployConfig.MICROSERVICE_ACCOUNT,
-            "us-east-2")               
-    } );
+        BlueGreenDeployConfig prod = BlueGreenDeployConfig.createDeploymentConfig(
+            (Construct)this, 
+            "Prod", 
+            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+                Environment.builder()
+                    .account(BlueGreenPipeline.COMPONENT_ACCOUNT)
+                    .region(BlueGreenPipeline.COMPONENT_REGION)
+                .build()  
+            );
+            
+        BlueGreenDeployConfig dr = BlueGreenDeployConfig.createDeploymentConfig(
+            (Construct)this, 
+            "DR", 
+            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+                Environment.builder()
+                    .account(BlueGreenPipeline.COMPONENT_ACCOUNT)
+                    .region("us-east-2")
+                .build()  
+            );            
+        
+        Arrays.asList(new BlueGreenDeployConfig[]{preProd, prod, dr}).forEach(c->configureDeployStage(c,pipeline));
 }
 
 ```

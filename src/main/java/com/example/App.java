@@ -21,19 +21,18 @@ import software.amazon.awscdk.StackProps;
  */
 public class App extends software.amazon.awscdk.App {
 
+    public static final String TOOLCHAIN_ACCOUNT             = "742584497250";
+    public static final String TOOLCHAIN_REGION              = "us-east-1";
+
     public static void main(String args[]) throws Exception {
 
         App app = new App();
-
-        String appName =    Toolchain.APP_NAME;
         
-        Environment envToolchain =   Toolchain.toolchainEnv();
+        Environment envToolchain =   App.toolchainEnv();
 
         new Toolchain(
             app, 
-            appName+"Toolchain",
-            appName,
-            Toolchain.CODECOMMIT_REPO,
+            Constants.APP_NAME+"Toolchain",
             StackProps.builder()
                 .env(envToolchain)
                 .build());    
@@ -46,9 +45,14 @@ public class App extends software.amazon.awscdk.App {
                     .account(Aws.ACCOUNT_ID)
                     .region(Aws.REGION)
                     .build())
-                .description("This stack includes resources that are used by AWS CodeDeploy as part of a BlueGreen pipeline")
+                .description("This stack includes Blue/Green pipeline resources that are used by AWS CodeDeploy")
                 .build());
 
         app.synth();
     }
+
+    public static Environment toolchainEnv(){
+	
+		return Environment.builder().account(TOOLCHAIN_ACCOUNT).region(TOOLCHAIN_REGION).build();
+	}      
 }
