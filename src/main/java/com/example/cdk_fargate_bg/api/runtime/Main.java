@@ -47,9 +47,9 @@ public class Main{
     }
 
     /**
-     * Starts the JAX-RS application.
+     * Creates a JSON HTTP Web Service using Grizzly and Jersey.
      *
-     * @return new instance of the lightweight HTTP server
+     * @return new instance of the Grizzly HTTP server
      * @throws IOException
      */
     HttpServer startServer() throws IOException {    
