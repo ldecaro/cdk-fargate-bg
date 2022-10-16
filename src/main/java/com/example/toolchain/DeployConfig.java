@@ -1,8 +1,5 @@
 package com.example.toolchain;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.example.Constants;
 import com.example.bootstrap.CodeDeployBootstrap;
 
@@ -22,7 +19,7 @@ import software.constructs.Construct;
  * stage of the BlueGreenPipeline. As a convenience, method getStages may
  * be updated to create Production and DR environments.
  */
-public class BlueGreenDeployConfig extends Stack {    
+public class DeployConfig extends Stack {    
     
     private String deployConfig     =   null;
     private Environment env         =   null;
@@ -30,10 +27,8 @@ public class BlueGreenDeployConfig extends Stack {
     private IRole codeDeployRole    =   null;
     private String stageName        =   null;     
 
-    public BlueGreenDeployConfig(final Construct scope, final String id, final String stageName, final String deploymentConfig, StackProps props) {
+    public DeployConfig(final Construct scope, final String id, final String stageName, final String deploymentConfig, StackProps props) {
 
-        //This construct is a stack that always needs to be associated with the app and not another Stack or pipeline stage.
-        // super((Construct)scope.getNode().getRoot(), id, props);
         super(scope, id, props);
 
         this.deployConfig   =   deploymentConfig;
@@ -47,7 +42,7 @@ public class BlueGreenDeployConfig extends Stack {
 
         dg  =  EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
             this, 
-            Constants.APP_NAME+"-ecsdeploymentgroup", 
+            Constants.APP_NAME+"-DeploymentGroup", 
             EcsDeploymentGroupAttributes.builder()
                 .deploymentGroupName( Constants.APP_NAME+"-"+stgName )
                 .application(EcsApplication.fromEcsApplicationName(
@@ -58,9 +53,22 @@ public class BlueGreenDeployConfig extends Stack {
                 
         codeDeployRole  = Role.fromRoleArn(
             this, 
-            "aws-code-deploy-role-"+stgName.toLowerCase(), 
+            "AWSCodeDeployRole"+stgName, 
             "arn:aws:iam::"+this.getAccount()+":role/"+CodeDeployBootstrap.getRoleName());
     }
+
+    static DeployConfig createDeploymentConfig(final Construct scope, final String stageName, final String deployConfig, final Environment env){
+
+        return new DeployConfig(
+            scope,
+            "BlueGreenDeployConfig"+stageName,            
+            stageName,
+            deployConfig,
+            StackProps.builder()
+                .env(env)
+                .stackName(Constants.APP_NAME+"CodeDeploy"+stageName)
+                .build());
+    }       
 
     public String getDeployConfig(){
         return deployConfig;
@@ -92,33 +100,5 @@ public class BlueGreenDeployConfig extends Stack {
 
     public String toString(){
         return env.getAccount()+"/"+env.getRegion()+"/"+this.stageName;
-    }
-
-    // public static List<BlueGreenDeployConfig> getDeployStages(final Construct scope){
-        
-    //     ArrayList<BlueGreenDeployConfig> stages    =   new ArrayList<>();
-    //     for(Environment env: envs){            
-    //         stages.add(
-    //             BlueGreenDeployConfig.createDeploymentConfig(
-    //                 scope,
-    //                 "PreProd",
-    //                 "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-    //                 env)
-    //         );
-    //     }
-    //     return stages;        
-    // }    
-
-    static BlueGreenDeployConfig createDeploymentConfig(final Construct scope, final String stageName, final String deployConfig, final Environment env){
-
-        return new BlueGreenDeployConfig(
-            scope,
-            "BlueGreenDeployConfig"+stageName,            
-            stageName,
-            deployConfig,
-            StackProps.builder()
-                .env(env)
-                .stackName(Constants.APP_NAME+"CodeDeploy"+stageName)
-                .build());
-    }    
+    } 
 }

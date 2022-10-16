@@ -15,7 +15,7 @@ public class Toolchain extends Stack {
 
         super(scope, id, props);           
 
-        new BlueGreenPipeline(
+        new Pipeline(
             this,
             "BlueGreenPipeline", 
             Toolchain.CODECOMMIT_REPO,

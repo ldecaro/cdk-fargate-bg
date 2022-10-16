@@ -16,29 +16,26 @@
         <cdk.version>2.31.1</cdk.version>
         <component.dockerfile.location>src/main/java/com/example/${project.name}/api/runtime</component.dockerfile.location>
         <component.codedeploy.location>src/main/java/com/example/toolchain/codedeploy</component.codedeploy.location>
+        <jersey.version>3.0.5</jersey.version>
+        <junit.version>5.4.0</junit.version>
     </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.2</version>
-      <scope>test</scope>
-    </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-grizzly2-http</artifactId>
-        <version>3.0.4</version>
     </dependency>    
-    <dependency>
-        <groupId>org.glassfish.jersey.core</groupId>
-        <artifactId>jersey-client</artifactId>
-        <version>3.0.4</version>
-    </dependency>
     <dependency>
         <groupId>org.glassfish.jersey.inject</groupId>
         <artifactId>jersey-hk2</artifactId>
-        <version>3.0.4</version>
     </dependency>
     <dependency>
         <groupId>jakarta.activation</groupId>
@@ -46,30 +43,10 @@
         <version>2.0.1</version>
     </dependency>            
     <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-core</artifactId>
-        <version>2.13.1</version>
-    </dependency>
-    <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-annotations</artifactId>
-        <version>2.13.1</version>
-    </dependency>  
-    <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>2.13.2.1</version>
-    </dependency>     
-    <dependency>
         <groupId>software.amazon.awscdk</groupId>
         <artifactId>aws-cdk-lib</artifactId>
         <version>${cdk.version}</version>
     </dependency>         
-    <dependency>
-        <groupId>software.constructs</groupId>
-        <artifactId>constructs</artifactId>
-        <version>10.0.70</version>
-    </dependency>           
   </dependencies>
 
     <build>
@@ -81,63 +58,7 @@
                     <exclude>**/codedeploy/*</exclude>
                 </excludes>
             </resource>
-        </resources>    
-        <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
-            <plugins>
-                <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
-                <plugin>
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>3.1.0</version>
-                </plugin>
-                <!-- default lifecycle, jar packaging: see https://maven.apache.org/ref/current/maven-core/default-bindings.html#Plugin_bindings_for_jar_packaging -->
-                <plugin>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.0.2</version>
-                </plugin>
-                <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
-                </plugin>
-                <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.1</version>
-                </plugin>
-                <plugin>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.0.2</version>
-                </plugin>   
-                <plugin>
-                <artifactId>maven-dependency</artifactId>
-                <version>2.6</version>
-                </plugin>        
-                <plugin>
-                <artifactId>maven-exec-plugin</artifactId>
-                <version>3.0.0</version>
-                </plugin>                
-                <plugin>
-                <artifactId>maven-install-plugin</artifactId>
-                <version>2.5.2</version>
-                </plugin>
-                <plugin>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>2.8.2</version>
-                </plugin>
-                <!-- site lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#site_Lifecycle -->
-                <plugin>
-                <artifactId>maven-site-plugin</artifactId>
-                <version>3.7.1</version>
-                </plugin>
-                <plugin>
-                <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>3.0.0</version>
-                </plugin>    
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.2.0</version>
-                </plugin>                    
-            </plugins>
-        </pluginManagement>           
+        </resources>              
         <plugins>
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -181,7 +102,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.5.1</version>
+                <version>3.8.1</version>
                 <inherited>true</inherited>
                 <configuration>
                     <source>1.8</source>
@@ -196,11 +117,11 @@
                     <archive>		        
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <classpathPrefix>lib</classpathPrefix>
+                            <classpathPrefix>lib/</classpathPrefix>
                             <mainClass>${project.groupId}.${project.name}.api.runtime.Main</mainClass>
                         </manifest>
                         <manifestEntries>
-                            <Class-Path>lib/*</Class-Path>
+                            <Class-Path>lib/</Class-Path>
                         </manifestEntries>
                     </archive>
                     <excludes>
@@ -208,11 +129,10 @@
                     </excludes>
                 </configuration>
             </plugin>  
-          <!-- Unpack all dependencies inside -->
           <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-dependency-plugin</artifactId>
-              <version>2.6</version>
+              <version>3.1.2</version>
               <executions>
                   <execution>
                       <id>unpack-dependencies</id>
@@ -237,5 +157,17 @@
             </plugin>              
         </plugins>
     </build>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.glassfish.jersey</groupId>
+                <artifactId>jersey-bom</artifactId>
+                <version>${jersey.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
 </project>

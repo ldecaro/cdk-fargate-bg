@@ -10,16 +10,17 @@ public class Network extends Construct {
 
     Vpc vpc = null;
     public Network (Construct scope, final String id, String appName){
+
         super(scope,id);
 
-        Vpc vpc = Vpc.Builder.create(this, appName+"-vpc") 
+        Vpc vpc = Vpc.Builder.create(this, appName+"VPC") 
             .maxAzs(2)
             .natGateways(1)
             .enableDnsHostnames(Boolean.TRUE)
             .enableDnsSupport(Boolean.TRUE)            
             .build();
     
-        SecurityGroup sg    =   SecurityGroup.Builder.create(this, appName+"-sg")
+        SecurityGroup sg    =   SecurityGroup.Builder.create(this, appName+"Sg")
             .vpc(vpc)
             .allowAllOutbound(Boolean.TRUE)
             .build();

@@ -1,11 +1,11 @@
 package com.example.cdk_fargate_bg.compute.infrastructure;
 
 import static com.example.Constants.APP_NAME;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.example.Constants;
 import com.example.cdk_fargate_bg.network.infrastructure.Network;
 
 import software.amazon.awscdk.CustomResource;
@@ -73,7 +73,7 @@ public class ECS extends Construct{
 
         super(scope,id);    
 
-        Cluster cluster =   Cluster.Builder.create(this, APP_NAME+"-cluster")
+        Cluster cluster =   Cluster.Builder.create(this, APP_NAME+"ECSCluster")
             .vpc(ecsNetwork.getVpc())
             .build();
 
@@ -128,7 +128,7 @@ public class ECS extends Construct{
 
     Role createTaskRole(){
 
-        return Role.Builder.create(this, Constants.APP_NAME+"-ecsTaskRole")
+        return Role.Builder.create(this, APP_NAME+"EcsTaskRole")
             .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com").build())
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"), 
@@ -140,8 +140,8 @@ public class ECS extends Construct{
 
     Role createExecutionRole(final String strEnvType){
         
-        return Role.Builder.create(this, Constants.APP_NAME+"-ecsExecutionRole")
-            .roleName(Constants.APP_NAME+"-"+strEnvType)
+        return Role.Builder.create(this, APP_NAME+"EcsExecutionRole")
+            .roleName(APP_NAME+"-"+strEnvType)
             .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com").build())
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromManagedPolicyArn(
@@ -154,7 +154,7 @@ public class ECS extends Construct{
 
     FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, Role taskRole, Role executionRole, String strEnvType ){
 
-        FargateService service  =   FargateService.Builder.create(this, appName+"-fargateSvc")
+        FargateService service  =   FargateService.Builder.create(this, appName+"FargateSvc")
             .desiredCount(1)
             .cluster(cluster)
             .serviceName(appName)
@@ -184,7 +184,7 @@ public class ECS extends Construct{
 
         TaskDefinition taskDef =    null;
         
-        taskDef =   TaskDefinition.Builder.create(this, serviceName+"-ecsTaskDef")
+        taskDef =   TaskDefinition.Builder.create(this, serviceName+"-EcsTaskDef")
             .taskRole(taskRole)
             .executionRole(executionRole)
             .networkMode(NetworkMode.AWS_VPC)
@@ -200,7 +200,7 @@ public class ECS extends Construct{
             .memoryLimitMiB(ECS_CONTAINER_MEMORY_LIMIT)
             .image(ContainerImage.fromDockerImageAsset(        
                 DockerImageAsset.Builder
-                    .create(this, Constants.APP_NAME+"-container")
+                    .create(this, APP_NAME+"Container")
                     .directory(getPathDockerfile())
                     .build()))
             .essential(Boolean.TRUE)
@@ -227,16 +227,16 @@ public class ECS extends Construct{
 
     ApplicationLoadBalancer createALB(final String serviceName, final Cluster cluster, final String strEnvType){
         
-        ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(this, APP_NAME+"-LB")
-            .loadBalancerName(APP_NAME+"-alb-"+strEnvType).vpc(cluster.getVpc()).internetFacing(true)
+        ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(this, APP_NAME+"ALB")
+            .loadBalancerName(APP_NAME+"Alb"+strEnvType).vpc(cluster.getVpc()).internetFacing(true)
             .build();
 
-        ApplicationListener listener = alb.addListener("Bg-Listener-Blue", BaseApplicationListenerProps.builder()
+        ApplicationListener listener = alb.addListener("BgListenerBlue", BaseApplicationListenerProps.builder()
             .port(80)
             .protocol(ApplicationProtocol.HTTP)
             .build());
 
-        SecurityGroup sg    =   SecurityGroup.Builder.create(this, "SecurityGroupBlueGreenELB")
+        SecurityGroup sg    =   SecurityGroup.Builder.create(this, APP_NAME+"SgALB")
             .vpc(cluster.getVpc())
             .allowAllOutbound(Boolean.TRUE)
             .build();
@@ -247,20 +247,20 @@ public class ECS extends Construct{
         String tgGreenName = APP_NAME+"-"+strEnvType+"-Green";
         tgGreenName = tgGreenName.length()>32 ? tgGreenName.substring(tgGreenName.length()-32) : tgGreenName;
 
-        ApplicationTargetGroup tgGreen   =   ApplicationTargetGroup.Builder.create(this, APP_NAME+"-green-tg")
+        ApplicationTargetGroup tgGreen   =   ApplicationTargetGroup.Builder.create(this, APP_NAME+"GreenTg")
             .protocol(ApplicationProtocol.HTTP)
             .targetGroupName(tgGreenName)
             .targetType(TargetType.IP)
             .vpc(cluster.getVpc())
             .build();
 
-        ApplicationListener listenerGreen = alb.addListener("Bg-Listener-Green", BaseApplicationListenerProps.builder()
+        ApplicationListener listenerGreen = alb.addListener("BgListenerGreen", BaseApplicationListenerProps.builder()
             .port(8080)
             .defaultTargetGroups(Arrays.asList(tgGreen))
             .protocol(ApplicationProtocol.HTTP)
             .build());
 
-        listenerGreen.addAction(APP_NAME+"-listener-green-action", AddApplicationActionProps.builder()
+        listenerGreen.addAction(APP_NAME+"ListenerGreenAction", AddApplicationActionProps.builder()
             .action(ListenerAction.forward(Arrays.asList( tgGreen )))
             .build());
 
@@ -292,8 +292,8 @@ public class ECS extends Construct{
 
 
         SingletonFunction customResource = SingletonFunction.Builder.create(this, appEnv+"-lambda")
-            .uuid(appEnv+"-lambda")
-            .functionName(appEnv+"-lambda")
+            .uuid(appEnv+"Lambda")
+            .functionName(appEnv+"Lambda")
             .runtime(software.amazon.awscdk.services.lambda.Runtime.PYTHON_3_9)
             .timeout(Duration.seconds(870))
             .memorySize(128)
@@ -303,10 +303,10 @@ public class ECS extends Construct{
             .logRetention(RetentionDays.ONE_MONTH)
             .role(customLambdaRole)
             .build();
-        Provider provider   =   Provider.Builder.create(this, appEnv+"-codedeploy-lambda-provider")
+        Provider provider   =   Provider.Builder.create(this, appEnv+"LambdaProvider")
             .onEventHandler(customResource)
             .build();
-        CustomResource.Builder.create(this, appEnv+"-custom-resource")
+        CustomResource.Builder.create(this, appEnv+"CustomResource")
             .serviceToken(provider.getServiceToken())
             .properties(lambdaEnv)
             .build();        
@@ -316,9 +316,9 @@ public class ECS extends Construct{
 
     private Role createCodeDeployExecutionRole(){
 
-        return Role.Builder.create(this, Constants.APP_NAME+"-codedeploy-exec-role")
+        return Role.Builder.create(this, APP_NAME+"CodeDeployExecRole")
             .assumedBy(ServicePrincipal.Builder.create("codedeploy.amazonaws.com").build())
-            .description("CodeBuild Execution Role for "+Constants.APP_NAME)
+            .description("CodeBuild Execution Role for "+APP_NAME)
             .path("/")
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeBuildDeveloperAccess"),
@@ -333,7 +333,7 @@ public class ECS extends Construct{
     
     private Role createCustomLambdaRole(Role codeDeployRole){        
 
-        return Role.Builder.create(this, Constants.APP_NAME+"-custom-lambdarole")
+        return Role.Builder.create(this,  APP_NAME+"CustomLambdaRole")
             .inlinePolicies(new HashMap<String, PolicyDocument>(){
                 private static final long serialVersionUID = 6728018370248392366L;
                 {
@@ -355,7 +355,7 @@ public class ECS extends Construct{
                 ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
             ))
             .assumedBy(ServicePrincipal.Builder.create("lambda.amazonaws.com").build())
-            .description("Execution Role for CustomLambda "+Constants.APP_NAME+". This lambda creates CodeDeploy application and deployment group for ECS BlueGreen")
+            .description("Execution Role for CustomLambda "+APP_NAME+". This lambda creates CodeDeploy application and deployment group for ECS BlueGreen")
             .path("/")
             .build();
     }          

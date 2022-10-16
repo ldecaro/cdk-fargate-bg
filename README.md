@@ -120,7 +120,7 @@ Edit `src/main/java/com/example/App.java` and update values of the environment o
     public static final String TOOLCHAIN_REGION              = "us-east-1";
 ```
 
-Edit `src/main/java/com/example/toolchain/BlueGreenPipeline.java` and update values of the environment of the microservice:
+Edit `src/main/java/com/example/toolchain/Pipeline.java` and update values of the environment of the microservice:
 ```java
 
     public static final String COMPONENT_ACCOUNT          = "222222222222";
@@ -179,49 +179,55 @@ npx cdk deploy ExampleMicroserviceToolchain
 ```
 ## **The CI/CD Pipeline**
 
-The pipeline is defined by a Construct named `BlueGreenPipeline`. To create a pipeline with a single deployment stage all you need is the CodeCommit repository information as shown below:
+The pipeline is defined by a Construct named `Pipeline`. To create a pipeline with a single deployment stage all you need is the CodeCommit repository information as shown below:
 ```java
-new BlueGreenPipeline(
+new Pipeline(
     this,
-    "BlueGreenPipeline",
+    "Pipeline",
     Toolchain.CODECOMMIT_REPO,
     Toolchain.CODECOMMIT_BRANCH);
 ```
 
-By default, the CI/CD pipeline is created with a single deployment stage (PreProd). The `BlueGreenPipeline` contains a constructor that creates the deployment stages. Update the constructor of the class `src/main/java/com/example/toolchain/BlueGreenPipeline.java` to add more deployment stages. Please find below an example to add two new stages, ```Prod``` and ```DR```:
+Each instance of the class `Pipeline` will create a CI/CD pipeline with 3 stages: source, build and deploy. By default, it creates one deployment stage (PreProd). Each deployment stage refer to a different environment. Each environment is refers to an account and region and the same pipeline can deploy to different environments. 
+
+Update the constructor of the class `src/main/java/com/example/toolchain/Pipeline.java` to add more deployment stages. The example below shows how to add a `Prod` and `DR` environments:
 
 ```java
-        BlueGreenDeployConfig preProd = BlueGreenDeployConfig.createDeploymentConfig(
-            (Construct)this, 
+public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
+
+        DeployConfig preProd = DeployConfig.createDeploymentConfig(
+            this, 
             "PreProd", 
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
                 Environment.builder()
-                    .account(BlueGreenPipeline.COMPONENT_ACCOUNT)
-                    .region(BlueGreenPipeline.COMPONENT_REGION)
+                    .account(Pipeline.COMPONENT_ACCOUNT)
+                    .region(Pipeline.COMPONENT_REGION)
                 .build()  
             );
 
-        BlueGreenDeployConfig prod = BlueGreenDeployConfig.createDeploymentConfig(
-            (Construct)this, 
+        DeployConfig prod = DeployConfig.createDeploymentConfig(
+            this, 
             "Prod", 
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
                 Environment.builder()
-                    .account(BlueGreenPipeline.COMPONENT_ACCOUNT)
-                    .region(BlueGreenPipeline.COMPONENT_REGION)
+                    .account(Pipeline.COMPONENT_ACCOUNT)
+                    .region(Pipeline.COMPONENT_REGION)
                 .build()  
             );
-            
-        BlueGreenDeployConfig dr = BlueGreenDeployConfig.createDeploymentConfig(
-            (Construct)this, 
+
+        DeployConfig dr = DeployConfig.createDeploymentConfig(
+            this, 
             "DR", 
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
                 Environment.builder()
-                    .account(BlueGreenPipeline.COMPONENT_ACCOUNT)
+                    .account(Pipeline.COMPONENT_ACCOUNT)
                     .region("us-east-2")
                 .build()  
             );            
-        
-        Arrays.asList(new BlueGreenDeployConfig[]{preProd, prod, dr}).forEach(c->configureDeployStage(c,pipeline));
+
+        Arrays.asList(
+            new DeployConfig[]{preProd}).forEach(
+                deployConfig->configureDeployStage(deployConfig,pipeline));
 }
 
 ```

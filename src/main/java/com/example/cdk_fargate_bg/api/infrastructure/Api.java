@@ -20,18 +20,18 @@ public class Api extends Construct {
         super(scope, id);
         String strEnvType   =   id.split("Api")[id.split("Api").length-1];
         
-        DockerImageAsset.Builder.create(scope, APP_NAME+"-container")
+        DockerImageAsset.Builder.create(this, APP_NAME+"-container")
             .directory("./target")
             .build();
 
         Network ecsNetwork = new Network(
-            scope, 
-            APP_NAME+"-api-network", 
+            this, 
+            "Network", 
             APP_NAME );
 
         ECS ecs = new ECS(
-            scope, 
-            APP_NAME+"-api-ecs", 
+            this, 
+            "ECS", 
             deploymentConfig, 
             strEnvType, 
             ecsNetwork); 

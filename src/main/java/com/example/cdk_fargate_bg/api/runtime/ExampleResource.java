@@ -1,8 +1,6 @@
 package com.example.cdk_fargate_bg.api.runtime;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -17,16 +15,16 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 /**
- * Root resource (exposed at "myresource" path)
+ * Example resource returns example.html directly at the root context.
  */
 @Path("/")
-public class HelloWorldResource {
+public class ExampleResource {
 
     private static String HTML =   null;
 
-
-    public HelloWorldResource(){
-        HelloWorldResource.HTML = getFile("com/example/api/runtime/home.html");;
+    public ExampleResource(){
+		if( ExampleResource.HTML == null )
+        	ExampleResource.HTML = getFile("com/example/cdk_fargate_bg/api/runtime/example.html");;
     }
     
     /**
@@ -36,10 +34,10 @@ public class HelloWorldResource {
      * @return String that will be returned as a text/plain response.
      */
     @GET
-    @Produces(MediaType.TEXT_HTML)
-    public InputStream getIt() {
-        return new ByteArrayInputStream(HTML.getBytes());
-    }
+	@Produces(MediaType.TEXT_HTML)
+    public String example() {
+        return ExampleResource.HTML;
+    }	
 
     private String getFile(String filename) {
 		
@@ -55,21 +53,20 @@ public class HelloWorldResource {
         	try {
         		bytes = Files.readAllBytes( Paths.get(this.getClass().getClassLoader().getResource(filename).toURI()));                	
 			} catch (URISyntaxException e) {
-				System.out.println("HelloWorldResource::Cannot load parameter file "+filename+". URISyntaxException:"+e.getMessage());
+				System.out.println("ExampleResource::Cannot HTML file "+filename+". URISyntaxException:"+e.getMessage());
 				e.printStackTrace();
 			} catch( IOException ioe) {
-				System.out.println("HelloWorldResource::Cannot load parameter file "+filename+". IOException:"+ioe.getMessage());
+				System.out.println("ExampleResource::Cannot HTML file "+filename+". IOException:"+ioe.getMessage());
 				ioe.printStackTrace();
 			}
-
 		} catch (URISyntaxException e) {
-			System.out.println("App::Cannot load parameter file "+filename+". URISyntaxException:"+e.getMessage());
+			System.out.println("ExampleResource::Cannot HTMl file "+filename+". URISyntaxException:"+e.getMessage());
 			e.printStackTrace();
 		} catch( IOException ioe) {
-			System.out.println("App::Cannot load parameter file "+filename+". IOException:"+ioe.getMessage());
+			System.out.println("ExampleResource::Cannot HTML file "+filename+". IOException:"+ioe.getMessage());
 			ioe.printStackTrace();
 		}
         String fileContent	=	new String(bytes);
         return fileContent;
-	}    
+	}    	
 }
