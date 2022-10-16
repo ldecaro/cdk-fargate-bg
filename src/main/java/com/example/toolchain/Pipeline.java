@@ -19,14 +19,14 @@ import software.constructs.Construct;
 
 public class Pipeline extends Construct {
 
-    public static final String COMPONENT_ACCOUNT          = App.TOOLCHAIN_ACCOUNT;
-    public static final String COMPONENT_REGION           = App.TOOLCHAIN_REGION;
+    private Environment preProdEnv = Environment.builder()
+        .account(App.TOOLCHAIN_ACCOUNT)
+        .region(App.TOOLCHAIN_REGION)
+        .build();
 
-    private Construct scope =   null;
     public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
 
         super(scope,id);
-        this.scope = scope;
 
         CodePipeline pipeline   =   createPipeline(
             gitRepoURL,
@@ -36,28 +36,24 @@ public class Pipeline extends Construct {
             this, 
             "PreProd", 
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-                Environment.builder()
-                    .account(Pipeline.COMPONENT_ACCOUNT)
-                    .region(Pipeline.COMPONENT_REGION)
-                .build()  
-            );
+            preProdEnv);
         
         Arrays.asList(
             new DeployConfig[]{preProd}).forEach(
-                deployConfig->configureDeployStage(deployConfig,pipeline));
+                deployConfig->configureDeployStage(pipeline, deployConfig));
     }
 
     CodePipeline createPipeline(String repoURL, String branch){
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
-            Repository.fromRepositoryName(scope, "code-repository", repoURL ),
+            Repository.fromRepositoryName(this, "code-repository", repoURL ),
             branch,
             CodeCommitSourceOptions
                 .builder()
                 .trigger(CodeCommitTrigger.POLL)
                 .build());   
         
-        return CodePipeline.Builder.create(scope, "Pipeline-"+APP_NAME)
+        return CodePipeline.Builder.create(this, "Pipeline-"+APP_NAME)
             .publishAssetsInParallel(Boolean.FALSE)
             .dockerEnabledForSelfMutation(Boolean.TRUE)
             .crossAccountKeys(Boolean.TRUE)
@@ -72,12 +68,12 @@ public class Pipeline extends Construct {
             .build();
     }  
 
-    private void configureDeployStage(DeployConfig deployConfig, CodePipeline pipeline){       
+    private void configureDeployStage(CodePipeline pipeline, DeployConfig deployConfig){       
 
         final String stageName = deployConfig.getStageName();
 
         DeployStage stage = new DeployStage(
-            scope, 
+            pipeline, 
             "Deploy-"+stageName, 
             pipeline.getCloudAssemblyFileSet(), 
             deployConfig, 
