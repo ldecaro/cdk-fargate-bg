@@ -1,20 +1,32 @@
 package com.example.toolchain;
 
-import static com.example.Constants.APP_NAME;
-
 import java.util.Arrays;
+import java.util.List;
 
 import com.example.App;
+import com.example.Constants;
+import com.example.bootstrap.CodeDeployBootstrap;
+import com.example.cdk_fargate_bg.CdkFargateBg;
 
+import static com.example.Constants.APP_NAME;
 import software.amazon.awscdk.Environment;
+import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.StageProps;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
 import software.amazon.awscdk.pipelines.CodePipelineSource;
 import software.amazon.awscdk.pipelines.ShellStep;
 import software.amazon.awscdk.pipelines.StageDeployment;
+import software.amazon.awscdk.pipelines.Step;
 import software.amazon.awscdk.services.codecommit.Repository;
+import software.amazon.awscdk.services.codedeploy.EcsApplication;
+import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroup;
+import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroupAttributes;
+import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.codepipeline.actions.CodeCommitTrigger;
+import software.amazon.awscdk.services.iam.IRole;
+import software.amazon.awscdk.services.iam.Role;
 import software.constructs.Construct;
 
 public class Pipeline extends Construct {
@@ -32,16 +44,89 @@ public class Pipeline extends Construct {
             gitRepoURL,
             gitBranch);  
 
-        DeployConfig preProd = DeployConfig.createDeploymentConfig(
-            this, 
-            "PreProd", 
+        Stage deployStage = Stage.Builder.create(pipeline, "Deploy-PreProd").env(preProdEnv).build();
+
+        new CdkFargateBg(
+            deployStage, 
+            "CdkFargateBgPreProd",
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-            preProdEnv);
+            StackProps.builder()
+                .stackName("ExampleMicroservicePreProd")
+                .description("Microservice ExampleMicroserice-PreProd")
+                .build());
+
+
+        Step configCodeDeployStep = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
+        .input(pipeline.getCloudAssemblyFileSet())
+        .primaryOutputDirectory("codedeploy")    
+        .commands(configureCodeDeploy( "PreProd", deployStage.getAccount(), deployStage.getRegion() ))
+        .build(); 
         
-        Arrays.asList(
-            new DeployConfig[]{preProd}).forEach(
-                deployConfig->configureDeployStage(pipeline, deployConfig));
+        StageDeployment stageDeployment = pipeline.addStage(deployStage);
+        stageDeployment.addPre(configCodeDeployStep);
+
+        IRole codeDeployRole  = Role.fromRoleArn(
+            pipeline, 
+            "AWSCodeDeployRolePreProd", 
+            "arn:aws:iam::"+deployStage.getAccount()+":role/"+CodeDeployBootstrap.getRoleName());
+
+        IEcsDeploymentGroup deploymentGroup  =  EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
+                pipeline, 
+                Constants.APP_NAME+"-DeploymentGroup", 
+                EcsDeploymentGroupAttributes.builder()
+                    .deploymentGroupName( Constants.APP_NAME+"-"+deployStage.getStageName() )
+                    .application(EcsApplication.fromEcsApplicationName(
+                        pipeline, 
+                        Constants.APP_NAME+"-ecs-deploy-app", 
+                        Constants.APP_NAME+"-"+deployStage.getStageName()))
+                    .build());          
+
+        stageDeployment.addPost(
+            new NewCodeDeployStep(            
+            "codeDeploypreprod", 
+            "preprod",
+            configCodeDeployStep.getPrimaryOutput(), 
+            codeDeployRole,
+            deploymentGroup)
+        );
+        
+
+
+        // DeployConfig preProd = DeployConfig.createDeploymentConfig(
+        //     this, 
+        //     "PreProd", 
+        //     "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+        //     preProdEnv);
+        
+        // Arrays.asList(
+        //     new DeployConfig[]{preProd}).forEach(
+        //         deployConfig->configureDeployStage(pipeline, deployConfig));
     }
+
+    private List<String> configureCodeDeploy(String stageName, String account, String region ){
+
+        // if( deployConfig == null ){
+        //     return Arrays.asList(new String[]{});
+        // }
+        // final String stageName =   deployConfig.getStageName();        
+        // final String account =  deployConfig.getAccount();
+        // final String region =   deployConfig.getRegion();
+        return Arrays.asList(
+
+            "ls -l",
+            "ls -l codedeploy",
+            "repo_name=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "tag_name=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "echo ${repo_name}",
+            "echo ${tag_name}",
+            "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/${repo_name}:${tag_name}\" > codedeploy/imageDetail.json",                    
+            "sed 's#APPLICATION#"+APP_NAME+"#g' codedeploy/template-appspec.yaml > codedeploy/appspec.yaml",
+            "sed 's#APPLICATION#"+APP_NAME+"#g' codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+APP_NAME+"-"+stageName+"#g' | sed 's#fargate-task-definition#"+APP_NAME+"#g' > codedeploy/taskdef.json",
+            "cat codedeploy/appspec.yaml",
+            "cat codedeploy/taskdef.json",
+            "cat codedeploy/imageDetail.json"
+        );     
+    }     
 
     CodePipeline createPipeline(String repoURL, String branch){
 

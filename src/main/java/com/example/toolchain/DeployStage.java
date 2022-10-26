@@ -43,10 +43,10 @@ public class DeployStage extends Stage {
             deployConfig.getDeployConfig(),
             StackProps.builder()
                 .stackName(APP_NAME+stageName)
-                .description("Microservice "+APP_NAME+"-"+stageName.toLowerCase())
+                .description("Microservice "+APP_NAME+"-"+stageName)
                 .build());
 
-        configCodeDeployStep = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
+        this.configCodeDeployStep = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
             .input(cloudAssemblyFileSet)
             .primaryOutputDirectory("codedeploy")    
             .commands(configureCodeDeploy( deployConfig ))
@@ -113,7 +113,8 @@ public class DeployStage extends Stage {
             if(deploymentConfig.getEcsDeploymentGroup() == null ){
                 throw new IllegalArgumentException("EcsDeploymentGroup cannot be null");
             }
-            this.dg    =   deploymentConfig.getEcsDeploymentGroup();
+            //this.dg    =   deploymentConfig.getEcsDeploymentGroup();
+            this.dg = deploymentConfig.getEcsDeploymentGroup();
             this.envType = envType;
         }
 
