@@ -13,21 +13,19 @@ import software.amazon.awscdk.services.codepipeline.IStage;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsContainerImageInput;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsDeployAction;
 import software.amazon.awscdk.services.iam.IRole;
-import software.amazon.awscdk.services.iam.Role;
 
-class NewCodeDeployStep extends Step implements ICodePipelineActionFactory{
+class CodeDeployStep extends Step implements ICodePipelineActionFactory{
 
     FileSet fileSet =   null;
     IRole codeDeployRole    =   null;
-    IEcsDeploymentGroup dg  =   null;
+    IEcsDeploymentGroup deploymentGroup  =   null;
     String envType  =   null;
 
-    public NewCodeDeployStep(String id, String envType, FileSet fileSet, IRole deployRole, IEcsDeploymentGroup dg){
+    public CodeDeployStep(String id, String envType, FileSet fileSet, IRole deployRole, IEcsDeploymentGroup deploymentGroup){
         super(id);
         this.fileSet    =   fileSet;
         this.codeDeployRole =   deployRole;
-        //this.dg    =   deploymentConfig.getEcsDeploymentGroup();
-        this.dg = dg;
+        this.deploymentGroup = deploymentGroup;
         this.envType = envType;
     }
 
@@ -46,7 +44,7 @@ class NewCodeDeployStep extends Step implements ICodePipelineActionFactory{
                 .input(artifact)
                 .taskDefinitionPlaceholder("IMAGE1_NAME")
                 .build()))
-            .deploymentGroup( dg )
+            .deploymentGroup( deploymentGroup )
             .variablesNamespace("deployment-"+envType)
             .build());
 

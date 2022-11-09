@@ -1,5 +1,6 @@
 package com.example.toolchain;
 
+import com.example.App;
 import com.example.Constants;
 
 import software.amazon.awscdk.Stack;
@@ -15,10 +16,17 @@ public class Toolchain extends Stack {
 
         super(scope, id, props);           
 
-        new Pipeline(
+        Pipeline pipeline = new Pipeline(
             this,
             "BlueGreenPipeline", 
             Toolchain.CODECOMMIT_REPO,
             Toolchain.CODECOMMIT_BRANCH);
+
+        pipeline.addStage(
+            "PreProd",
+            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+            App.TOOLCHAIN_ACCOUNT,
+            App.TOOLCHAIN_REGION);          
+ 
     }
 }
