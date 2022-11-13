@@ -21,7 +21,7 @@ import software.amazon.awscdk.StackProps;
  */
 public class App extends software.amazon.awscdk.App {
 
-    public static final String TOOLCHAIN_ACCOUNT             = "742584497250";
+    public static final String TOOLCHAIN_ACCOUNT             = "123456789012";
     public static final String TOOLCHAIN_REGION              = "us-east-1";
 
     public static void main(String args[]) throws Exception {

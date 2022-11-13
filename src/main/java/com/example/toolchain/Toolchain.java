@@ -23,10 +23,9 @@ public class Toolchain extends Stack {
             Toolchain.CODECOMMIT_BRANCH);
 
         pipeline.addStage(
-            "PreProd",
+            "UAT",
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
             App.TOOLCHAIN_ACCOUNT,
-            App.TOOLCHAIN_REGION);          
- 
+            App.TOOLCHAIN_REGION);              
     }
 }
