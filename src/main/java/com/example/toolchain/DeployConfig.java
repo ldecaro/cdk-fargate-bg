@@ -57,7 +57,9 @@ public class DeployConfig extends Stack {
             "arn:aws:iam::"+this.getAccount()+":role/"+CodeDeployBootstrap.getRoleName());
     }
 
-    static DeployConfig createDeploymentConfig(final Construct scope, final String stageName, final String deployConfig, final Environment env){
+    static DeployConfig createDeploymentConfig(final Construct scope, final String stageName, final String deployConfig, final String account, final String region){
+
+        Environment env = Environment.builder().account(account).region(region).build();
 
         return new DeployConfig(
             scope,

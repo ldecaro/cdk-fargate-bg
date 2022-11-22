@@ -93,7 +93,9 @@ public class ECS extends Construct{
             taskExecutionRole, 
             strEnvType);
 
-        createCustomResource(
+        //Container deployment configuration is 
+        //part of the ECS infrastructure
+        configureDeployment(
             APP_NAME+"-"+strEnvType, 
             cluster.getClusterName(), 
             service.getServiceName(), 
@@ -155,7 +157,7 @@ public class ECS extends Construct{
     FargateService createFargateService(String appName, Cluster cluster, ApplicationLoadBalancer lb, Role taskRole, Role executionRole, String strEnvType ){
 
         FargateService service  =   FargateService.Builder.create(this, appName+"FargateSvc")
-            .desiredCount(1)
+            .desiredCount(2)
             .cluster(cluster)
             .serviceName(appName)
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
@@ -271,7 +273,17 @@ public class ECS extends Construct{
         return alb;
     }
 
-    SingletonFunction createCustomResource(String appEnv, String clusterName, String serviceName, String deploymentConfigName){
+    /**
+     * Enables BlueGreen deployments. Configures an AWS CodeDeploy application and a 
+     * deployment group for this microservice.
+     * 
+     * @param appEnv
+     * @param clusterName
+     * @param serviceName
+     * @param deploymentConfigName
+     * @return
+     */
+    SingletonFunction configureDeployment(String appEnv, String clusterName, String serviceName, String deploymentConfigName){
 
         Role deployRole         =   createCodeDeployExecutionRole();
         Role customLambdaRole   =   createCustomLambdaRole(deployRole);

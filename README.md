@@ -71,7 +71,7 @@ npx cdk synth
 **3. Push configuration changes to AWS CodeCommit**
 
 ```
-git add src/main/java/com/example/toolchain/Toolchain.java
+git add src/main/java/com/example/App.java
 git add cdk.context.json
 git commit -m "initial config"
 git push codecommit://ExampleMicroservice --all
@@ -120,7 +120,7 @@ Edit `src/main/java/com/example/App.java` and update values of the environment o
     public static final String TOOLCHAIN_REGION              = "us-east-1";
 ```
 
-Edit `src/main/java/com/example/toolchain/Pipeline.java` and update values of the environment of the microservice:
+Edit `src/main/java/com/example/toolchain/Toolchain.java` and update values of the environment of the microservice:
 ```java
 
     public static final String COMPONENT_ACCOUNT          = "222222222222";
@@ -179,7 +179,7 @@ npx cdk deploy ExampleMicroserviceToolchain
 ```
 ## **The CI/CD Pipeline**
 
-The pipeline is defined by a Construct named `Pipeline`. To create a pipeline with a single deployment stage all you need is the CodeCommit repository information as shown below:
+The `Pipeline` construct instantiates new CI/CD pipelines that build Java based HTTP microservices. As a result, each new `Pipeline` comes with 2 stages: source and build. The example below shows how to create a new `Pipeline` using a construct id and repository information:
 ```java
 new Pipeline(
     this,
@@ -188,58 +188,54 @@ new Pipeline(
     Toolchain.CODECOMMIT_BRANCH);
 ```
 
-Each instance of the class `Pipeline` will create a CI/CD pipeline with 3 stages: source, build and deploy. By default, it creates one deployment stage (PreProd). Each deployment stage refer to a different environment. Each environment is refers to an account and region and the same pipeline can deploy to different environments. 
+A new `Pipeline` needs deployment stages. To add those, the method `addStage` needs to be invoked at least once. The `addStage` method creates deployment stages to different AWS accounts and regions. This feature enables the implementation of different scenarios going from single region (HA) to cross-region deployment scenarios (DR).
 
-Update the constructor of the class `src/main/java/com/example/toolchain/Pipeline.java` to add more deployment stages. The example below shows how to add a `Prod` and `DR` environments:
+Below there is an example pipeline that has a single deployment stage named `UAT` (User Acceptance Test). Each deployment stage has a name, a [deployment configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html) and environment information, such as, account and region, where the component should be deployed.
+
+In detail:
 
 ```java
-public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
+    public Toolchain(final Construct scope, final String id, final StackProps props) throws Exception {
 
-        DeployConfig preProd = DeployConfig.createDeploymentConfig(
-            this, 
-            "PreProd", 
+        super(scope, id, props);           
+
+        Pipeline pipeline = new Pipeline(
+            this,
+            "BlueGreenPipeline", 
+            Toolchain.CODECOMMIT_REPO,
+            Toolchain.CODECOMMIT_BRANCH);
+
+        pipeline.addStage(
+            "UAT",
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-                Environment.builder()
-                    .account(Pipeline.COMPONENT_ACCOUNT)
-                    .region(Pipeline.COMPONENT_REGION)
-                .build()  
-            );
-
-        DeployConfig prod = DeployConfig.createDeploymentConfig(
-            this, 
-            "Prod", 
+            Toolchain.COMPONENT_ACCOUNT,
+            Toolchain.COMPONENT_REGION);   
+            
+        pipeline.addStage(
+            "Prod",
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-                Environment.builder()
-                    .account(Pipeline.COMPONENT_ACCOUNT)
-                    .region(Pipeline.COMPONENT_REGION)
-                .build()  
-            );
-
-        DeployConfig dr = DeployConfig.createDeploymentConfig(
-            this, 
-            "DR", 
-            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-                Environment.builder()
-                    .account(Pipeline.COMPONENT_ACCOUNT)
-                    .region("us-east-2")
-                .build()  
-            );            
-
-        Arrays.asList(
-            new DeployConfig[]{preProd}).forEach(
-                deployConfig->configureDeployStage(deployConfig,pipeline));
-}
+            Toolchain.COMPONENT_ACCOUNT,
+            Toolchain.COMPONENT_REGION,
+            Pipeline.CONTINUOUS_DELIVERY);             
+    }
 
 ```
 
-The self-mutating capability implemented by CDK Pipelines makes it easy to add manual approval stages or add and remove deployment stages without the need to manually redeploy the toolchain stack. This feature reinforces the notion of a self-contained solution where the toolchain code, microservice infrastructure code and microservice runtime code are all maintained inside the same Git repository. For more information, please check [this](https://aws.amazon.com/pt/blogs/developer/cdk-pipelines-continuous-delivery-for-aws-cdk-applications/) blog about CDK Pipelines.
+Instances of `Pipeline` are self-mutating pipelines. This means that changes to the pipeline code that are added to the repository will be reflected to the existing pipeline next time it runs the stage `UpdatePipeline`. This is a convenience for adding stages as new environments need to be created. 
+
+Another convenience in the `addStage` method is the support to a continuous delivery deployment type. If needed, the deployment stage may be configured to implement a manual approval stage action. In the example above, the stage `Prod` has been configured as CONTINUOUS_DELIVERY and it will bring an approval stage.
+
+Self-Mutating pipelines promote the notion of a self-contained solution where the toolchain code, microservice infrastructure code and microservice runtime code are all maintained inside the same Git repository. For more information, please check [this](https://aws.amazon.com/pt/blogs/developer/cdk-pipelines-continuous-delivery-for-aws-cdk-applications/) blog about CDK Pipelines.
+
+The image below shows an example pipeline created with two deployment stages named `UAT and Prod`:
 
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
+<img src="/imgs/pipeline-3.png" width=100% >
 
 ## **Stacks Created**
 
-Once the project is deployed and the pipeline successfully finished AWS Cloud Formation will contain a set of Stacks that got created. In the image below, we can see that, for the Example Microservice we needed 2 Stacks: ```CodeDeployBootstrap``` and ```ExampleMicroservicePreProd```.
+In total, AWS CloudFormation will display three stacks: `CodeDeployBootstrap`, `ExampleMicroserviceToolchain` and `ExampleMicroservicePreProd`. The first stack configures permissions to CodeDeploy, KMS and pipeline artifacts. The `ExampleMicroserviceToolchain` stack deploys the pipeline and the `ExampleMicroservicePreProd` stack deploys the component in the `PreProd` environment. In this case, toolchain and `PreProd` were deployed in the same account and region.
 
 <img src="/imgs/stacks.png" width=25% >
 ## <a name="cleanup"></a> Clean up 
