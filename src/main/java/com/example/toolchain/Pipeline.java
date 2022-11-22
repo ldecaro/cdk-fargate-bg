@@ -97,8 +97,8 @@ public class Pipeline extends Construct {
 
             "ls -l",
             "ls -l codedeploy",
-            "repo_name=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "tag_name=$(cat *-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "repo_name=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "tag_name=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
             "echo ${repo_name}",
             "echo ${tag_name}",
             "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/${repo_name}:${tag_name}\" > codedeploy/imageDetail.json",                    
