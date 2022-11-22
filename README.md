@@ -190,7 +190,7 @@ new Pipeline(
 
 A new `Pipeline` needs deployment stages. To add those, the method `addStage` needs to be invoked at least once. The `addStage` method creates deployment stages to different AWS accounts and regions. This feature enables the implementation of different scenarios going from single region (HA) to cross-region deployment scenarios (DR).
 
-Below there is an example pipeline that has a single deployment stage named `UAT` (User Acceptance Test). Each deployment stage has a name, a [deployment configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html) and environment information, such as, account and region, where the component should be deployed.
+In the example below there is a pipeline that has two deployment stages: `UAT` (User Acceptance Test) and `Prod`. Each deployment stage has a name, a [deployment configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html) and environment information, such as, account and region where the component should be deployed.
 
 In detail:
 
