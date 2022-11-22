@@ -13,6 +13,7 @@ import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
 import software.amazon.awscdk.pipelines.CodePipeline;
 import software.amazon.awscdk.pipelines.CodePipelineSource;
+import software.amazon.awscdk.pipelines.ManualApprovalStep;
 import software.amazon.awscdk.pipelines.ShellStep;
 import software.amazon.awscdk.pipelines.StageDeployment;
 import software.amazon.awscdk.pipelines.Step;
@@ -22,6 +23,7 @@ import software.constructs.Construct;
 
 public class Pipeline extends Construct {
 
+    public static final Boolean CONTINUOUS_DELIVERY       = Boolean.TRUE;
     private CodePipeline pipeline   =   null;
 
     //We can't have stage names that are substrings of other stage names as it would break instrumentation.
@@ -36,8 +38,10 @@ public class Pipeline extends Construct {
             gitBranch);
     }
 
-    public Pipeline addStage(final String stageName, final String deployConfig, String account, String region) {
-
+    public Pipeline addStage(String stageName, final String deployConfig, String account, String region, final Boolean ADD_APPROVAL ) {
+        
+        //removes all spaces
+        stageName = stageName.replaceAll("\\s","");
         validateStageName(stageName);
 
         DeployConfig config   =   DeployConfig.createDeploymentConfig(this, stageName, deployConfig, account, region);
@@ -64,7 +68,11 @@ public class Pipeline extends Construct {
  
         StageDeployment stageDeployment = pipeline.addStage(deployStage);
 
-        stageDeployment.addPre(configCodeDeployStep);
+        if(ADD_APPROVAL){
+            stageDeployment.addPre(ManualApprovalStep.Builder.create("Approve "+stageName).build(), configCodeDeployStep);
+        }else{
+            stageDeployment.addPre(configCodeDeployStep);
+        }
 
         //Deploy using AWS CodeDeploy
         stageDeployment.addPost(
@@ -75,6 +83,12 @@ public class Pipeline extends Construct {
         );    
 
         return this;
+
+    }
+
+    public Pipeline addStage(final String stageName, final String deployConfig, String account, String region) {
+
+        return addStage(stageName, deployConfig, account, region, Boolean.FALSE);
     }
 
     private List<String> configureCodeDeploy(String stageName, String account, String region ){

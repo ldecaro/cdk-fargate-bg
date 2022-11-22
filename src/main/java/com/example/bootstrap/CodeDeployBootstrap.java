@@ -36,7 +36,7 @@ public class CodeDeployBootstrap extends Stack {
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ContainerRegistryFullAccess"),
                 ManagedPolicy.fromAwsManagedPolicyName("AmazonECS_FullAccess"),
-                ManagedPolicy.fromAwsManagedPolicyName("AWSCodePipelineFullAccess"),
+                ManagedPolicy.fromAwsManagedPolicyName("AWSCodePipeline_FullAccess"),
                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchLogsFullAccess"),
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployRoleForECS"),
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeDeployDeployerAccess")                

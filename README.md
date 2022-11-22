@@ -71,7 +71,7 @@ npx cdk synth
 **3. Push configuration changes to AWS CodeCommit**
 
 ```
-git add src/main/java/com/example/toolchain/Toolchain.java
+git add src/main/java/com/example/App.java
 git add cdk.context.json
 git commit -m "initial config"
 git push codecommit://ExampleMicroservice --all
@@ -120,7 +120,7 @@ Edit `src/main/java/com/example/App.java` and update values of the environment o
     public static final String TOOLCHAIN_REGION              = "us-east-1";
 ```
 
-Edit `src/main/java/com/example/toolchain/Pipeline.java` and update values of the environment of the microservice:
+Edit `src/main/java/com/example/toolchain/Toolchain.java` and update values of the environment of the microservice:
 ```java
 
     public static final String COMPONENT_ACCOUNT          = "222222222222";
@@ -208,20 +208,30 @@ In detail:
         pipeline.addStage(
             "UAT",
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-            App.TOOLCHAIN_ACCOUNT,
-            App.TOOLCHAIN_REGION);              
+            Toolchain.COMPONENT_ACCOUNT,
+            Toolchain.COMPONENT_REGION);   
+            
+        pipeline.addStage(
+            "Prod",
+            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+            Toolchain.COMPONENT_ACCOUNT,
+            Toolchain.COMPONENT_REGION,
+            Pipeline.CONTINUOUS_DELIVERY);             
     }
 
 ```
 
-Instances of `Pipeline` are self-mutating pipelines. This means that changes to the pipeline code that are added to the repository will be reflected to the existing pipeline next time it runs the action `UpdatePipeline`. This is a convenience for adding stages as new environments need to be created. Another common use case is for adding manual approval stages between deployment stages. For that, please refer to [this](https://docs.aws.amazon.com/cdk/api/v2/java/index.html?software/amazon/awscdk/services/codepipeline/actions/ManualApprovalAction.html) example.
+Instances of `Pipeline` are self-mutating pipelines. This means that changes to the pipeline code that are added to the repository will be reflected to the existing pipeline next time it runs the stage `UpdatePipeline`. This is a convenience for adding stages as new environments need to be created. 
+
+Another convenience in the `addStage` method is the support to a continuous delivery deployment type. If needed, the deployment stage may be configured to implement a manual approval stage action. In the example above, the stage `Prod` has been configured as CONTINUOUS_DELIVERY and it will bring an approval stage.
 
 Self-Mutating pipelines promote the notion of a self-contained solution where the toolchain code, microservice infrastructure code and microservice runtime code are all maintained inside the same Git repository. For more information, please check [this](https://aws.amazon.com/pt/blogs/developer/cdk-pipelines-continuous-delivery-for-aws-cdk-applications/) blog about CDK Pipelines.
 
-The image below shows an example pipeline created with one deployment stage named `Deploy-PreProd`:
+The image below shows an example pipeline created with two deployment stages named `UAT and Prod`:
 
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
+<img src="/imgs/pipeline-3.png" width=100% >
 
 ## **Stacks Created**
 

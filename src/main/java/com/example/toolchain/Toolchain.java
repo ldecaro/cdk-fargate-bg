@@ -12,6 +12,9 @@ public class Toolchain extends Stack {
     public static final String CODECOMMIT_REPO            = Constants.APP_NAME;
     public static final String CODECOMMIT_BRANCH          = "master";
 
+    public static final String COMPONENT_ACCOUNT        =   App.TOOLCHAIN_ACCOUNT;
+    public static final String COMPONENT_REGION         =   App.TOOLCHAIN_REGION;
+
     public Toolchain(final Construct scope, final String id, final StackProps props) throws Exception {
 
         super(scope, id, props);           
@@ -25,7 +28,7 @@ public class Toolchain extends Stack {
         pipeline.addStage(
             "UAT",
             "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
-            App.TOOLCHAIN_ACCOUNT,
-            App.TOOLCHAIN_REGION);              
+            Toolchain.COMPONENT_ACCOUNT,
+            Toolchain.COMPONENT_REGION);
     }
 }
