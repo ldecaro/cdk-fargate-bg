@@ -1,13 +1,12 @@
 package com.example.toolchain;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 
 import com.example.Constants;
 import com.example.cdk_fargate_bg.CdkFargateBg;
 
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
@@ -39,13 +38,13 @@ public class Pipeline extends Construct {
 
     public Pipeline addStage(final String stageName, final String deployConfig, final String account, final String region, final Boolean ADD_APPROVAL ) {
 
-        DeployConfig config   =   DeployConfig.createDeploymentConfig(this, stageName, deployConfig, account, region);
+        Environment env = Environment.builder().region(region).account(account).build();
 
         //The stage
-        Stage deployStage = Stage.Builder.create(pipeline, stageName).env(config.getEnv()).build();
+        Stage deployStage = Stage.Builder.create(pipeline, stageName).env(env).build();
 
         //My stack
-        new CdkFargateBg(
+        CdkFargateBg component = new CdkFargateBg(
             deployStage, 
             "CdkFargateBg"+stageName,
             deployConfig,
@@ -74,11 +73,11 @@ public class Pipeline extends Construct {
             new CodeDeployStep(            
             "codeDeploypreprod", 
             configCodeDeployStep.getPrimaryOutput(), 
-            config)
-        );    
-
+            component.getCodeDeployRole(),
+            component.getEcsDeploymentGroup(),
+            stageName)
+        );
         return this;
-
     }
 
     public Pipeline addStage(final String stageName, final String deployConfig, String account, String region) {

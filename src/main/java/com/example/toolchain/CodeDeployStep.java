@@ -21,12 +21,12 @@ class CodeDeployStep extends Step implements ICodePipelineActionFactory{
     IEcsDeploymentGroup deploymentGroup  =   null;
     String envType  =   null;
 
-    public CodeDeployStep(String id, FileSet fileSet, DeployConfig config){
+    public CodeDeployStep(String id, FileSet fileSet, IRole codeDeployRole, IEcsDeploymentGroup deploymentGroup, String stageName){
         super(id);
         this.fileSet    =   fileSet;
-        this.codeDeployRole =   config.getCodeDeployRole();
-        this.deploymentGroup = config.getEcsDeploymentGroup();
-        this.envType = config.getStageName().toLowerCase();
+        this.codeDeployRole     =   codeDeployRole;
+        this.deploymentGroup    =   deploymentGroup;
+        this.envType    = stageName;
     }
 
     @Override
