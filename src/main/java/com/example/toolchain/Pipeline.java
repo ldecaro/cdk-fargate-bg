@@ -24,10 +24,9 @@ import software.constructs.Construct;
 public class Pipeline extends Construct {
 
     public static final Boolean CONTINUOUS_DELIVERY       = Boolean.TRUE;
+    public static final Boolean CONTINUOUS_DEPLOYMENT       = Boolean.FALSE;
+    
     private CodePipeline pipeline   =   null;
-
-    //We can't have stage names that are substrings of other stage names as it would break instrumentation.
-    private Collection<String> stageNames = new ArrayList<>();
 
     public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
 
@@ -38,11 +37,7 @@ public class Pipeline extends Construct {
             gitBranch);
     }
 
-    public Pipeline addStage(String stageName, final String deployConfig, String account, String region, final Boolean ADD_APPROVAL ) {
-        
-        //removes all spaces
-        stageName = stageName.replaceAll("\\s","");
-        validateStageName(stageName);
+    public Pipeline addStage(final String stageName, final String deployConfig, final String account, final String region, final Boolean ADD_APPROVAL ) {
 
         DeployConfig config   =   DeployConfig.createDeploymentConfig(this, stageName, deployConfig, account, region);
 
@@ -91,14 +86,16 @@ public class Pipeline extends Construct {
         return addStage(stageName, deployConfig, account, region, Boolean.FALSE);
     }
 
-    private List<String> configureCodeDeploy(String stageName, String account, String region ){
+    private List<String> configureCodeDeploy(final String stageName, String account, String region ){
+
+        final String pipelineId    =   ((Construct)pipeline).getNode().getId();
 
         return Arrays.asList(
 
             "ls -l",
             "ls -l codedeploy",
-            "repo_name=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "tag_name=$(cat *"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "repo_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
+            "tag_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
             "echo ${repo_name}",
             "echo ${tag_name}",
             "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/${repo_name}:${tag_name}\" > codedeploy/imageDetail.json",                    
@@ -134,19 +131,4 @@ public class Pipeline extends Construct {
                 .build())
             .build();
     }  
-
-    private boolean unsupportedStageName(final String stageName){
-
-        return stageNames.stream().anyMatch(c-> c.indexOf(stageName) != -1 || stageName.indexOf(c)!= -1);
-    }
-
-    private void validateStageName(final String stageName){
-
-        if( unsupportedStageName(stageName.toLowerCase()) ){
-            System.out.println("The name of this stage is unsupported because it is a substring of another stage name (or another stage name is a substring of this stage name): "+stageName+". Please choose another stage name for "+stageName);
-            throw new RuntimeException("The name of this stage is unsupported because it is a substring of another stage name: "+stageName);
-        }else{
-            stageNames.add(stageName.toLowerCase());
-        }
-    }    
 }
