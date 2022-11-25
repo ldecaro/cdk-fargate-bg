@@ -1,19 +1,14 @@
 package com.example.cdk_fargate_bg;
 
 import com.example.Constants;
-import com.example.bootstrap.CodeDeployBootstrap;
 import com.example.cdk_fargate_bg.api.infrastructure.Api;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
-import software.amazon.awscdk.services.codedeploy.EcsApplication;
-import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroup;
-import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroupAttributes;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.iam.IRole;
-import software.amazon.awscdk.services.iam.Role;
 import software.constructs.Construct;
 
 public class CdkFargateBg extends Stack {
@@ -33,22 +28,7 @@ public class CdkFargateBg extends Stack {
             this, 
             Constants.APP_NAME+"Api"+envType,
             deploymentConfig);
-
-        deploymentGroup  =  EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
-            this,
-            Constants.APP_NAME+"-DeploymentGroup", 
-            EcsDeploymentGroupAttributes.builder()
-                .deploymentGroupName( Constants.APP_NAME+"-"+stageName )
-                .application(EcsApplication.fromEcsApplicationName(
-                    this,
-                    Constants.APP_NAME+"-ecs-deploy-app", 
-                    Constants.APP_NAME+"-"+stageName))
-                .build());  
-
-        codeDeployRole  = Role.fromRoleArn(
-            this,
-            "AWSCodeDeployRole"+stageName, 
-            "arn:aws:iam::"+deploymentGroup.getEnv().getAccount()+":role/"+CodeDeployBootstrap.getRoleName());            
+         
     
         //In case the component has more resources, 
         //ie. a dynamo table, a lambda implementing a dynamo stream and a monitoring capability

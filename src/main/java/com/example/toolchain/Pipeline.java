@@ -4,9 +4,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.example.Constants;
+import com.example.bootstrap.CodeDeployBootstrap;
 import com.example.cdk_fargate_bg.CdkFargateBg;
 
 import software.amazon.awscdk.Environment;
+import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
@@ -17,7 +19,13 @@ import software.amazon.awscdk.pipelines.ShellStep;
 import software.amazon.awscdk.pipelines.StageDeployment;
 import software.amazon.awscdk.pipelines.Step;
 import software.amazon.awscdk.services.codecommit.Repository;
+import software.amazon.awscdk.services.codedeploy.EcsApplication;
+import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroup;
+import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroupAttributes;
+import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.codepipeline.actions.CodeCommitTrigger;
+import software.amazon.awscdk.services.iam.IRole;
+import software.amazon.awscdk.services.iam.Role;
 import software.constructs.Construct;
 
 public class Pipeline extends Construct {
@@ -44,7 +52,7 @@ public class Pipeline extends Construct {
         Stage deployStage = Stage.Builder.create(pipeline, stageName).env(env).build();
 
         //My stack
-        CdkFargateBg component = new CdkFargateBg(
+        new CdkFargateBg(
             deployStage, 
             "CdkFargateBg"+stageName,
             deployConfig,
@@ -52,6 +60,26 @@ public class Pipeline extends Construct {
                 .stackName(Constants.APP_NAME+stageName)
                 .description(Constants.APP_NAME+"-"+stageName)
                 .build());
+
+        IEcsDeploymentGroup deploymentGroup  =  EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
+            //cannot associate the scope with the CdkFargateBg stack as dependencies cannot cross stage boundaries.
+            new Stack(this, "ghost-stack-codedeploy-dg-"+stageName, StackProps.builder().env(env).build()), 
+            // component,
+            Constants.APP_NAME+"-DeploymentGroup", 
+            EcsDeploymentGroupAttributes.builder()
+                .deploymentGroupName( Constants.APP_NAME+"-"+stageName )
+                .application(EcsApplication.fromEcsApplicationName(
+                    new Stack(this, "ghost-stack-codedeploy-app-"+stageName, StackProps.builder().env(env).build()),
+                    // component,
+                    Constants.APP_NAME+"-ecs-deploy-app", 
+                    Constants.APP_NAME+"-"+stageName))
+                .build());  
+
+        IRole codeDeployRole  = Role.fromRoleArn(
+            new Stack(this, "ghost-stack-role-"+stageName, StackProps.builder().env(env).build()),
+            // component,
+            "AWSCodeDeployRole"+stageName, 
+            "arn:aws:iam::"+deploymentGroup.getEnv().getAccount()+":role/"+CodeDeployBootstrap.getRoleName());                   
 
         //Configure AWS CodeDeploy
         Step configCodeDeployStep = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
@@ -73,8 +101,8 @@ public class Pipeline extends Construct {
             new CodeDeployStep(            
             "codeDeploypreprod", 
             configCodeDeployStep.getPrimaryOutput(), 
-            component.getCodeDeployRole(),
-            component.getEcsDeploymentGroup(),
+            codeDeployRole,
+            deploymentGroup,
             stageName)
         );
         return this;
