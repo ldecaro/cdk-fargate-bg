@@ -7,8 +7,9 @@ import com.example.Constants;
 import com.example.bootstrap.CodeDeployBootstrap;
 import com.example.cdk_fargate_bg.CdkFargateBg;
 
+import software.amazon.awscdk.Arn;
+import software.amazon.awscdk.ArnComponents;
 import software.amazon.awscdk.Environment;
-import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
@@ -22,6 +23,7 @@ import software.amazon.awscdk.services.codecommit.Repository;
 import software.amazon.awscdk.services.codedeploy.EcsApplication;
 import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroup;
 import software.amazon.awscdk.services.codedeploy.EcsDeploymentGroupAttributes;
+import software.amazon.awscdk.services.codedeploy.IEcsApplication;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.codepipeline.actions.CodeCommitTrigger;
 import software.amazon.awscdk.services.iam.IRole;
@@ -59,34 +61,14 @@ public class Pipeline extends Construct {
             StackProps.builder()
                 .stackName(Constants.APP_NAME+stageName)
                 .description(Constants.APP_NAME+"-"+stageName)
-                .build());
-
-        IEcsDeploymentGroup deploymentGroup  =  EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
-            //cannot associate the scope with the CdkFargateBg stack as dependencies cannot cross stage boundaries.
-            new Stack(this, "ghost-stack-codedeploy-dg-"+stageName, StackProps.builder().env(env).build()), 
-            // component,
-            Constants.APP_NAME+"-DeploymentGroup", 
-            EcsDeploymentGroupAttributes.builder()
-                .deploymentGroupName( Constants.APP_NAME+"-"+stageName )
-                .application(EcsApplication.fromEcsApplicationName(
-                    new Stack(this, "ghost-stack-codedeploy-app-"+stageName, StackProps.builder().env(env).build()),
-                    // component,
-                    Constants.APP_NAME+"-ecs-deploy-app", 
-                    Constants.APP_NAME+"-"+stageName))
-                .build());  
-
-        IRole codeDeployRole  = Role.fromRoleArn(
-            new Stack(this, "ghost-stack-role-"+stageName, StackProps.builder().env(env).build()),
-            // component,
-            "AWSCodeDeployRole"+stageName, 
-            "arn:aws:iam::"+deploymentGroup.getEnv().getAccount()+":role/"+CodeDeployBootstrap.getRoleName());                   
+                .build());                 
 
         //Configure AWS CodeDeploy
         Step configCodeDeployStep = ShellStep.Builder.create("ConfigureBlueGreenDeploy")
-        .input(pipeline.getCloudAssemblyFileSet())
-        .primaryOutputDirectory("codedeploy")    
-        .commands(configureCodeDeploy( stageName, deployStage.getAccount(), deployStage.getRegion() ))
-        .build(); 
+            .input(pipeline.getCloudAssemblyFileSet())
+            .primaryOutputDirectory("codedeploy")    
+            .commands(configureCodeDeploy( stageName, deployStage.getAccount(), deployStage.getRegion() ))
+            .build(); 
  
         StageDeployment stageDeployment = pipeline.addStage(deployStage);
 
@@ -101,11 +83,52 @@ public class Pipeline extends Construct {
             new CodeDeployStep(            
             "codeDeploypreprod", 
             configCodeDeployStep.getPrimaryOutput(), 
-            codeDeployRole,
-            deploymentGroup,
+            importCodeDeployRole(env.getAccount(), stageName),
+            importCodeDeployDeploymentGroup(env, stageName),
             stageName)
         );
         return this;
+    }
+
+    private IRole importCodeDeployRole(final String account, final String stageName){
+
+        return  Role.fromRoleArn(
+            this,
+            "AWSCodeDeployRole"+stageName,
+            Arn.format(ArnComponents.builder()
+                .partition("aws")
+                .region("") // IAM is global in each partition
+                .service("iam")
+                .account(account)
+                .resource("role")
+                .resourceName(CodeDeployBootstrap.getRoleName())
+                .build()));
+    }
+
+    private IEcsDeploymentGroup importCodeDeployDeploymentGroup(final Environment env, final String stageName){
+
+        IEcsApplication codeDeployApp = EcsApplication.fromEcsApplicationArn(
+            this, 
+            Constants.APP_NAME+"-ecs-deploy-app", 
+            Arn.format(ArnComponents.builder()
+                .partition("aws")
+                .region(env.getRegion()) // IAM is global in each partition
+                .service("codedeploy")
+                .account(env.getAccount())
+                .resource("application")
+                .resourceName(Constants.APP_NAME+"-"+stageName)
+            .build()));
+
+        IEcsDeploymentGroup deploymentGroup = EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(
+            this, 
+            Constants.APP_NAME+"-DeploymentGroup",
+            EcsDeploymentGroupAttributes.builder()
+                .deploymentGroupName(Constants.APP_NAME+"-"+stageName)
+                .application(codeDeployApp)
+                .build()
+            );  
+
+        return deploymentGroup;
     }
 
     public Pipeline addStage(final String stageName, final String deployConfig, String account, String region) {
