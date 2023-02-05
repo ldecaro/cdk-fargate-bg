@@ -1,4 +1,4 @@
-package com.example.cdk_fargate_bg.network.infrastructure;
+package com.example.webapp.network.infrastructure;
 
 import software.amazon.awscdk.services.ec2.Peer;
 import software.amazon.awscdk.services.ec2.Port;
@@ -9,7 +9,7 @@ import software.constructs.Construct;
 public class Network extends Construct {
 
     Vpc vpc = null;
-    public Network (Construct scope, final String id, String appName){
+public Network (Construct scope, final String id, String appName){
 
         super(scope,id);
 

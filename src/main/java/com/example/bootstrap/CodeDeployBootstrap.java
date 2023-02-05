@@ -3,6 +3,8 @@ package com.example.bootstrap;
 import java.util.Arrays;
 import java.util.HashMap;
 
+import com.example.Constants;
+
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnParameter;
 import software.amazon.awscdk.Stack;
@@ -19,6 +21,7 @@ public class CodeDeployBootstrap extends Stack {
     
     public CodeDeployBootstrap(Construct scope, String id, StackProps props){
 
+        // super(scope, id);
         super(scope, id, props);
             
         CfnParameter codeDeployToolchainAccount = CfnParameter.Builder.create(this, "toolchainAccount")
@@ -65,6 +68,6 @@ public class CodeDeployBootstrap extends Stack {
     }
 
     public static String getRoleName(){
-        return "AWSCodeDeployRoleForBlueGreen";
+        return Constants.CodeDeploy.ROLE_NAME_DEPLOY;
     }
 }
