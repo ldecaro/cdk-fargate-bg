@@ -92,7 +92,7 @@ public class Pipeline extends Construct {
             new CodeDeployStep(            
             "codeDeploypreprod", 
             configCodeDeployStep.getPrimaryOutput(),
-            importCodeDeployDeploymentGroup(env, stageName),
+            importCodeDeployDeploymentGroup(env, stageName, deployConfig),
             stageName)
         );
 
@@ -128,7 +128,7 @@ public class Pipeline extends Construct {
                 .build());
     } */
 
-    private IEcsDeploymentGroup importCodeDeployDeploymentGroup(final Environment env, final String stageName){
+    private IEcsDeploymentGroup importCodeDeployDeploymentGroup(final Environment env, final String stageName, final IEcsDeploymentConfig deployConfig){
 
         IEcsApplication codeDeployApp = EcsApplication.fromEcsApplicationArn(
             this, 
@@ -150,6 +150,7 @@ public class Pipeline extends Construct {
             EcsDeploymentGroupAttributes.builder()
                 .deploymentGroupName(Constants.APP_NAME+"-"+stageName)
                 .application(codeDeployApp)
+                .deploymentConfig(deployConfig)
                 .build()
             );  
 
@@ -165,7 +166,7 @@ public class Pipeline extends Construct {
             "ls -l",
             "ls -l codedeploy",
             "repo_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "tag_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages | keys[0]')",
+            "tag_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages | to_entries[0].key')", 
             "echo ${repo_name}",
             "echo ${tag_name}",
             "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/${repo_name}:${tag_name}\" > codedeploy/imageDetail.json",                    
