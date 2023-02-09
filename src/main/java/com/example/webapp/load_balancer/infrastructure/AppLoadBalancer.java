@@ -7,8 +7,6 @@ import java.util.List;
 import com.example.Constants;
 
 import software.amazon.awscdk.services.ec2.IVpc;
-import software.amazon.awscdk.services.ec2.Peer;
-import software.amazon.awscdk.services.ec2.Port;
 import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ecs.BaseService;
 import software.amazon.awscdk.services.elasticloadbalancingv2.AddApplicationActionProps;
@@ -26,8 +24,7 @@ public class AppLoadBalancer extends Construct{
     private String listenerBlueArn  = null;
     private String listenerGreenArn = null;
     private List<String> tgBlueName       = new ArrayList<>();
-    private String tgGreenName      = null;    
-    private SecurityGroup sg        = null;    
+    private String tgGreenName      = null;      
     ApplicationLoadBalancer alb     = null;
 
     ApplicationTargetGroup tgGreen = null;
@@ -71,7 +68,6 @@ public class AppLoadBalancer extends Construct{
         this.listenerBlueArn = listener.getListenerArn();
         this.listenerGreenArn = listenerGreen.getListenerArn();
         this.tgGreenName= tgGreen.getTargetGroupName();
-        this.sg = sg;
         this.envType = envType;
         this.alb = alb;
         this.tgGreen = tgGreen;
@@ -84,15 +80,6 @@ public class AppLoadBalancer extends Construct{
         String tgBlueName = Constants.APP_NAME+"-"+envType+"-Blue-"+service.getServiceName();
         tgBlueName = tgBlueName.length()>32 ? tgBlueName.substring(tgBlueName.length()-32) : tgBlueName;
         this.tgBlueName.add(tgBlueName);
-
-        // listener.addTargets(
-        //     Constants.APP_NAME+"blue-tg", 
-        //     AddApplicationTargetsProps.builder()
-        //         .targetGroupName(tgBlueName)
-        //         .protocol(protocol)
-        //         .port(port)
-        //         .targets(Arrays.asList(service))
-        //         .build()); 
                 
         ApplicationTargetGroup tgBlue = ApplicationTargetGroup.Builder.create(this, Constants.APP_NAME+"BlueTg")
             .protocol(ApplicationProtocol.HTTP)

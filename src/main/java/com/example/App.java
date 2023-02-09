@@ -2,7 +2,6 @@ package com.example;
 
 import com.example.toolchain.Toolchain;
 
-import software.amazon.awscdk.Aws;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 

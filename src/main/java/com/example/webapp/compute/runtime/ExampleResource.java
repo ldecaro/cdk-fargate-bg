@@ -41,8 +41,7 @@ public class ExampleResource {
     }	
 
     private String getFile(String filename) {
-		
-		byte[] bytes = null;		
+			
 		try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(filename);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
 			// Use resource

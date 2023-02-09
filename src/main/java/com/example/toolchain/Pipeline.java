@@ -10,6 +10,7 @@ import software.amazon.awscdk.Arn;
 import software.amazon.awscdk.ArnComponents;
 import software.amazon.awscdk.ArnFormat;
 import software.amazon.awscdk.Environment;
+import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.pipelines.CodeCommitSourceOptions;
@@ -33,17 +34,25 @@ public class Pipeline extends Construct {
 
     public static final Boolean CONTINUOUS_DELIVERY       = Boolean.TRUE;
     public static final Boolean CONTINUOUS_DEPLOYMENT       = Boolean.FALSE;
-    
+
+    private String pipelineAccount  =   null;
     private CodePipeline pipeline   =   null;
 
     public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
 
         super(scope,id);
 
+        pipelineAccount = Stack.of(scope).getAccount();
+
         pipeline   =   createPipeline(
             gitRepoURL,
             gitBranch);
     }
+
+    public Pipeline addStage(final String stageName,  final IEcsDeploymentConfig deployConfig, String account, String region) {
+
+        return addStage(stageName, deployConfig, account, region, Boolean.FALSE);
+    }    
 
     public Pipeline addStage(final String stageName, final IEcsDeploymentConfig deployConfig, final String account, final String region, final Boolean ADD_APPROVAL ) {
 
@@ -52,10 +61,11 @@ public class Pipeline extends Construct {
         //The stage
         Stage deployStage = Stage.Builder.create(pipeline, stageName).env(env).build();
 
-        //My stack
+
+        // My stack
         new WebApp(
             deployStage, 
-            "WebApp"+stageName,
+            "Component"+stageName,
             deployConfig,
             StackProps.builder()
                 .stackName(Constants.APP_NAME+stageName)
@@ -85,8 +95,19 @@ public class Pipeline extends Construct {
             importCodeDeployDeploymentGroup(env, stageName),
             stageName)
         );
+
+        if( pipelineAccount != account ){
+            //we need to add permissions to the UpdatePipeline stage so that it can build assets. 
+            //Ultimately, it will require access to the cdk-deploy role in te target account.
+            grantCdkDeployPermissionsforAdditionalEnvironment(account);
+        }
         
         return this;
+    }
+
+    private void grantCdkDeployPermissionsforAdditionalEnvironment(String account){
+
+        // pipeline.getSelfMutationProject()
     }
 
 /*     private IRole importCodeDeployRole(final Environment env, final String stageName){
@@ -133,11 +154,6 @@ public class Pipeline extends Construct {
             );  
 
         return deploymentGroup;
-    }
-
-    public Pipeline addStage(final String stageName, final IEcsDeploymentConfig deployConfig, String account, String region) {
-
-        return addStage(stageName, deployConfig, account, region, Boolean.FALSE);
     }
 
     private List<String> configureCodeDeploy(final String stageName, String account, String region ){

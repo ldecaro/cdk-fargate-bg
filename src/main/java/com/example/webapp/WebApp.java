@@ -5,15 +5,15 @@ import com.example.webapp.compute.infrastructure.Compute;
 import com.example.webapp.network.infrastructure.Network;
 
 import software.amazon.awscdk.CfnOutput;
-import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentConfig;
 import software.constructs.Construct;
 
 public class WebApp extends Stack {
 
-    public WebApp(Construct scope, String id, IEcsDeploymentConfig deploymentConfig, StackProps props ){
-        
+    public WebApp(Construct scope, String id, IEcsDeploymentConfig deploymentConfig, StackProps props){
+    
         super(scope, id, props);
 
         String envType = this.getStackName().substring(this.getStackName().indexOf(Constants.APP_NAME)+Constants.APP_NAME.length());
