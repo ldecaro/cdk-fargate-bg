@@ -4,31 +4,30 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>cdk-fargate-bg</artifactId>
+    <artifactId>example_component</artifactId>
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
-    <name>cdk_fargate_bg</name>
+    <!-- MAKE SURE TO CHANGE THE ARTIFACT ID AND ALSO CHANGE THE DIRECTORY STRUCTURE INSIDE -->
+    <name>webapp</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <cdk.version>2.57.0</cdk.version>
-        <component.dockerfile.location>src/main/java/com/example/${project.name}/api/runtime</component.dockerfile.location>
-        <component.codedeploy.location>src/main/java/com/example/toolchain/codedeploy</component.codedeploy.location>
+        <cdk.version>2.65.0</cdk.version>
+        <component.dockerfile.location>src/main/java/com/example/${project.name}/compute/runtime</component.dockerfile.location>
+        <component.codedeploy.location>src/main/java/com/example/${project.name}/codedeploy</component.codedeploy.location>
         <jersey.version>3.0.5</jersey.version>
         <junit.version>5.4.0</junit.version>
     </properties>
 
   <dependencies>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-params</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+    </dependency>
     <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-grizzly2-http</artifactId>
@@ -93,6 +92,10 @@
                             <resources>
                                 <resource>
                                     <directory>${basedir}/${component.codedeploy.location}</directory>
+                                    <includes>
+                                        <include>template-appspec.yaml</include>
+                                        <include>template-taskdef.json</include>
+                                    </includes>
                                 </resource>
                             </resources>
                         </configuration> 
@@ -118,7 +121,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>${project.groupId}.${project.name}.api.runtime.Main</mainClass>
+                            <mainClass>${project.groupId}.${project.name}.compute.runtime.Main</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Class-Path>lib/</Class-Path>
@@ -129,25 +132,25 @@
                     </excludes>
                 </configuration>
             </plugin>  
-          <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-dependency-plugin</artifactId>
-              <version>3.1.2</version>
-              <executions>
-                  <execution>
-                      <id>unpack-dependencies</id>
-                      <phase>prepare-package</phase>
-                      <goals>
-                          <goal>unpack-dependencies</goal>
-                      </goals>
-                      <configuration>
-                          <excludeScope>system</excludeScope>
-                          <excludeGroupIds>junit,org.mockito,org.hamcrest,software.amazon.awscdk</excludeGroupIds>
-                          <outputDirectory>${project.build.directory}/classes</outputDirectory>
-                      </configuration>
-                  </execution>
-              </executions>
-          </plugin>           
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.1.2</version>
+                <executions>
+                    <execution>
+                        <id>unpack-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <excludeScope>system</excludeScope>
+                            <excludeGroupIds>junit,org.mockito,org.hamcrest,software.amazon.awscdk</excludeGroupIds>
+                            <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>           
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

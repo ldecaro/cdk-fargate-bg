@@ -1,10 +1,10 @@
 package com.example.toolchain;
 
-import com.example.App;
 import com.example.Constants;
 
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.codedeploy.EcsDeploymentConfig;
 import software.constructs.Construct;
 
 public class Toolchain extends Stack {
@@ -12,12 +12,12 @@ public class Toolchain extends Stack {
     public static final String CODECOMMIT_REPO            = Constants.APP_NAME;
     public static final String CODECOMMIT_BRANCH          = "master";
 
-    public static final String COMPONENT_ACCOUNT        =   App.TOOLCHAIN_ACCOUNT;
-    public static final String COMPONENT_REGION         =   App.TOOLCHAIN_REGION;
+    public static final String COMPONENT_ACCOUNT          = "222222222222";
+    public static final String COMPONENT_REGION           = "us-east-2";    
 
     public Toolchain(final Construct scope, final String id, final StackProps props) throws Exception {
 
-        super(scope, id, props);           
+        super(scope, id, props);        
 
         Pipeline pipeline = new Pipeline(
             this,
@@ -27,8 +27,10 @@ public class Toolchain extends Stack {
 
         pipeline.addStage(
             "UAT",
-            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+            EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,
             Toolchain.COMPONENT_ACCOUNT,
             Toolchain.COMPONENT_REGION);
+
+        pipeline.buildPipeline();
     }
 }

@@ -12,19 +12,16 @@ import software.amazon.awscdk.services.codepipeline.Artifact;
 import software.amazon.awscdk.services.codepipeline.IStage;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsContainerImageInput;
 import software.amazon.awscdk.services.codepipeline.actions.CodeDeployEcsDeployAction;
-import software.amazon.awscdk.services.iam.IRole;
 
 class CodeDeployStep extends Step implements ICodePipelineActionFactory{
 
     FileSet fileSet =   null;
-    IRole codeDeployRole    =   null;
     IEcsDeploymentGroup deploymentGroup  =   null;
     String envType  =   null;
 
-    public CodeDeployStep(String id, FileSet fileSet, IRole codeDeployRole, IEcsDeploymentGroup deploymentGroup, String stageName){
+    public CodeDeployStep(String id, FileSet fileSet, IEcsDeploymentGroup deploymentGroup, String stageName){
         super(id);
         this.fileSet    =   fileSet;
-        this.codeDeployRole     =   codeDeployRole;
         this.deploymentGroup    =   deploymentGroup;
         this.envType    = stageName;
     }
@@ -32,11 +29,10 @@ class CodeDeployStep extends Step implements ICodePipelineActionFactory{
     @Override
     public  CodePipelineActionFactoryResult produceAction(IStage stage, ProduceActionOptions options) {
 
-        Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);           
+        Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);
 
         stage.addAction(CodeDeployEcsDeployAction.Builder.create()
             .actionName("Deploy")
-            .role(codeDeployRole) 
             .appSpecTemplateInput(artifact)
             .taskDefinitionTemplateInput(artifact)
             .runOrder(options.getRunOrder())
