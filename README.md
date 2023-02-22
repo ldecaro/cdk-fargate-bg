@@ -217,7 +217,7 @@ The image below shows an example pipeline created with two deployment stages nam
 
 In a minimal deployment scenario, AWS CloudFormation will display two stacks: `ExampleMicroserviceToolchain` and `ExampleMicroservicePreProd`. CDKPipelines takes care of configuring permissions to CodeDeploy, KMS and pipeline artifacts. The `ExampleMicroserviceToolchain` stack deploys the pipeline and the `ExampleMicroservicePreProd` stack deploys the component in the `PreProd` environment. In this case, toolchain and `PreProd` were deployed in the same account and region.
 
-<img src="/imgs/stacks.png" width=25% >
+<img src="/imgs/stacks.png" >
 ## <a name="cleanup"></a> Clean up 
 
 - Clean the S3 bucket used to store the pipeline artifacts. Bucket name should be similar to the one from the example below:
