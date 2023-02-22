@@ -19,6 +19,9 @@ import software.amazon.awscdk.StackProps;
  */
 public class App extends software.amazon.awscdk.App {
 
+    private static final String TOOLCHAIN_ACCOUNT             = "111111111111";
+    private static final String TOOLCHAIN_REGION              = "us-east-1";
+
     public static void main(String args[]) throws Exception {
 
         App app = new App();
@@ -37,6 +40,6 @@ public class App extends software.amazon.awscdk.App {
 
     public static Environment toolchainEnv(){
 	
-		return Environment.builder().account("742584497250").region("us-east-1").build();
+		return Environment.builder().account(App.TOOLCHAIN_ACCOUNT).region(App.TOOLCHAIN_REGION).build();
 	}      
 }

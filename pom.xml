@@ -14,7 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <cdk.version>2.63.0</cdk.version>
+        <cdk.version>2.65.0</cdk.version>
         <component.dockerfile.location>src/main/java/com/example/${project.name}/compute/runtime</component.dockerfile.location>
         <component.codedeploy.location>src/main/java/com/example/${project.name}/codedeploy</component.codedeploy.location>
         <jersey.version>3.0.5</jersey.version>

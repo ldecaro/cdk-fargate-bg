@@ -20,8 +20,7 @@ public class WebApp extends Stack {
 
         Network ecsNetwork = new Network(
             this, 
-            "Network", 
-            Constants.APP_NAME );
+            "Network");
 
         Compute ecs = new Compute(
             this, 

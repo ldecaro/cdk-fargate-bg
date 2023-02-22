@@ -1,7 +1,9 @@
 package com.example.toolchain;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.example.Constants;
 import com.example.webapp.WebApp;
@@ -28,6 +30,8 @@ import software.amazon.awscdk.services.codedeploy.IEcsApplication;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentConfig;
 import software.amazon.awscdk.services.codedeploy.IEcsDeploymentGroup;
 import software.amazon.awscdk.services.codepipeline.actions.CodeCommitTrigger;
+import software.amazon.awscdk.services.iam.Effect;
+import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.constructs.Construct;
 
 public class Pipeline extends Construct {
@@ -37,6 +41,8 @@ public class Pipeline extends Construct {
 
     private String pipelineAccount  =   null;
     private CodePipeline pipeline   =   null;
+
+    private Map<String, Environment> stageEnvironment  =   new HashMap<>();
 
     public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
 
@@ -96,37 +102,39 @@ public class Pipeline extends Construct {
             stageName)
         );
 
-        if( pipelineAccount != account ){
-            //we need to add permissions to the UpdatePipeline stage so that it can build assets. 
-            //Ultimately, it will require access to the cdk-deploy role in te target account.
-            grantCdkDeployPermissionsforAdditionalEnvironment(account);
+        if( pipeline.getSelfMutationEnabled() && pipelineAccount != account ){
+            stageEnvironment.put(stageName, env);
         }
         
         return this;
     }
 
-    private void grantCdkDeployPermissionsforAdditionalEnvironment(String account){
+    public void buildPipeline(){
 
-        // pipeline.getSelfMutationProject()
+        if(!this.stageEnvironment.isEmpty()){
+
+            this.pipeline.buildPipeline();
+            for(String stage: stageEnvironment.keySet()){
+
+                //self-mutating pipelines create a stage named UpdatePipeline. 
+                //AWS CodeDeploy uses configuration files to work properly and, depending on the use case, this files might need to be transferred to the target account.
+                //UpdatePipeline is unaware of this at the time the pipeline is built. 
+                //As a result, we need to add a statement into the role it uses allowing it to publish-files to the target account.
+                //(https://github.com/aws/aws-cdk/pull/24073)
+                 
+                HashMap<String,String[]> condition	=	new HashMap<>();
+                condition.put("iam:ResourceTag/aws-cdk:bootstrap-role", new String[]{"image-publishing", "file-publishing", "deploy"});            
+                pipeline.getSelfMutationProject()
+                    .getRole().addToPrincipalPolicy(PolicyStatement.Builder.create()
+                        .actions(Arrays.asList("sts:AssumeRole"))
+                        .effect(Effect.ALLOW)                        
+                        .resources(Arrays.asList("arn:*:iam::"+stageEnvironment.get(stage).getAccount()+":role/*"))
+                        .conditions(new HashMap<String,Object> () {{put("ForAnyValue:StringEquals", condition);}})
+                        .build()                    
+                    );              
+            }
+        }
     }
-
-/*     private IRole importCodeDeployRole(final Environment env, final String stageName){
-
-        return  Role.fromRoleArn(
-            this,
-            "AWSCodeDeployRole"+stageName,
-            Arn.format(ArnComponents.builder()
-                .partition("aws")
-                .region("") 
-                .service("iam")
-                .account(env.getAccount())
-                .resource("role")
-                .resourceName(Constants.CodeDeploy.ROLE_NAME_DEPLOY)
-                .build()),
-            FromRoleArnOptions.builder()
-                .mutable(false)
-                .build());
-    } */
 
     private IEcsDeploymentGroup importCodeDeployDeploymentGroup(final Environment env, final String stageName, final IEcsDeploymentConfig deployConfig){
 

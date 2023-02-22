@@ -4,7 +4,7 @@ The project deploys a Java-based microservice using a CI/CD pipeline. The pipeli
 
 ![Architecture](/imgs/arch.png)
 
-The AWS CDK application defines two top-level stacks: 1/ *Toolchain* stack, that deploys the CI/CD pipeline 2/ *CodeDeployBootstrap* stack, that bootstraps AWS CodeDeploy in the specified AWS account. The pipeline can deploy the *Example* microservice to a single environment or multiple environments. The **blue** version of the *Example* microservice runtime code is deployed when the Example microservice is deployed the first time in an environment. Onwards, the **green** version of the Example microservice runtime code is deployed using AWS CodeDeploy. This Git repository contains the code of the Example microservice and its toolchain as a self-contained solution.
+The AWS CDK application defines a top-level stack that deploys the CI/CD pipeline using AWS CodeDeploy in the specified AWS account. The pipeline can deploy the *Example* microservice to a single environment or multiple environments. The **blue** version of the *Example* microservice runtime code is deployed when the Example microservice is deployed the first time in an environment. Onwards, the **green** version of the Example microservice runtime code is deployed using AWS CodeDeploy. This Git repository contains the code of the Example microservice and its toolchain as a self-contained solution.
 
 [Considerations when managing ECS blue/green deployments using CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations) documentation includes the following: _"When managing Amazon ECS blue/green deployments using CloudFormation, you can't include updates to resources that initiate blue/green deployments and updates to other resources in the same stack update"_. The approach used in this project allows to update the Example microservice infrastructure and runtime code in a single commit. To achieve that, the project leverages AWS CodeDeploy's [deployment model](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html#deployment-configuration-ecs) using configuration files to allow updating all resources in the same Git commit.
 
@@ -88,14 +88,7 @@ Deploying AWS CDK apps into an AWS environment (a combination of an AWS account 
  npx cdk bootstrap 111111111111/us-east-1
 ```
 
- - **AWS CodeDeploy**
 
-In addition, AWS CodeDeploy uses a specific AWS IAM role to perform the blue/green deployment. *This role should exist in each account where the microservice is deployed.* As a convenience, a script for bootstrapping AWS CodeDeploy is provided. 
-
-Use the following command to bootstrap AWS CodeDeploy in one account:
-```
-./codedeploy-bootstrap.sh 111111111111/us-east-1
-```
  
 **5. Deploy the Toolchain stack**
 It will deploy the microservice in the same account and region as the toolchain:
@@ -160,19 +153,6 @@ For cross-account scenarios, the parameter ```--trust``` is required. For more i
  npx cdk bootstrap 222222222222/us-east-2 --trust 111111111111
 ```
 
- - **AWS CodeDeploy**
-
-In addition, AWS CodeDeploy uses a specific AWS IAM role to perform the blue/green deployment. *This role should exist in each account where the microservice is deployed.* As a convenience, a script for bootstrapping AWS CodeDeploy is provided. 
-
-Use the following commands to bootstrap AWS CodeDeploy in accounts 111111111111 (Toolchain) & 222222222222 (Component):
-```
-./codedeploy-bootstrap.sh 111111111111/us-east-1
-```
-```
-#make sure your aws credentials are pointing to account 222222222222
-./codedeploy-bootstrap.sh 222222222222/us-east-1 --trust 111111111111 --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
-```
-
 **5. Deploy the Toolchain stack**
 ```
 npx cdk deploy ExampleMicroserviceToolchain
@@ -207,13 +187,13 @@ In detail:
 
         pipeline.addStage(
             "UAT",
-            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+            EcsDeploymentConfig.ALL_AT_ONCE,
             Toolchain.COMPONENT_ACCOUNT,
             Toolchain.COMPONENT_REGION);   
             
         pipeline.addStage(
             "Prod",
-            "CodeDeployDefault.ECSLinear10PercentEvery3Minutes",
+            EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,,
             Toolchain.COMPONENT_ACCOUNT,
             Toolchain.COMPONENT_REGION,
             Pipeline.CONTINUOUS_DELIVERY);             
@@ -235,11 +215,10 @@ The image below shows an example pipeline created with two deployment stages nam
 
 ## **Stacks Created**
 
-In total, AWS CloudFormation will display three stacks: `CodeDeployBootstrap`, `ExampleMicroserviceToolchain` and `ExampleMicroservicePreProd`. The first stack configures permissions to CodeDeploy, KMS and pipeline artifacts. The `ExampleMicroserviceToolchain` stack deploys the pipeline and the `ExampleMicroservicePreProd` stack deploys the component in the `PreProd` environment. In this case, toolchain and `PreProd` were deployed in the same account and region.
+In a minimal deployment scenario, AWS CloudFormation will display two stacks: `ExampleMicroserviceToolchain` and `ExampleMicroservicePreProd`. CDKPipelines takes care of configuring permissions to CodeDeploy, KMS and pipeline artifacts. The `ExampleMicroserviceToolchain` stack deploys the pipeline and the `ExampleMicroservicePreProd` stack deploys the component in the `PreProd` environment. In this case, toolchain and `PreProd` were deployed in the same account and region.
 
 <img src="/imgs/stacks.png" width=25% >
 ## <a name="cleanup"></a> Clean up 
-
 
 - Clean the S3 bucket used to store the pipeline artifacts. Bucket name should be similar to the one from the example below:
 ```

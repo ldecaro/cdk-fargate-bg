@@ -29,7 +29,7 @@ class CodeDeployStep extends Step implements ICodePipelineActionFactory{
     @Override
     public  CodePipelineActionFactoryResult produceAction(IStage stage, ProduceActionOptions options) {
 
-        Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);           
+        Artifact artifact   =   options.getArtifacts().toCodePipeline(fileSet);
 
         stage.addAction(CodeDeployEcsDeployAction.Builder.create()
             .actionName("Deploy")

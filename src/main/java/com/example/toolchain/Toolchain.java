@@ -12,6 +12,9 @@ public class Toolchain extends Stack {
     public static final String CODECOMMIT_REPO            = Constants.APP_NAME;
     public static final String CODECOMMIT_BRANCH          = "master";
 
+    public static final String COMPONENT_ACCOUNT          = "222222222222";
+    public static final String COMPONENT_REGION           = "us-east-2";    
+
     public Toolchain(final Construct scope, final String id, final StackProps props) throws Exception {
 
         super(scope, id, props);        
@@ -24,8 +27,10 @@ public class Toolchain extends Stack {
 
         pipeline.addStage(
             "UAT",
-            EcsDeploymentConfig.ALL_AT_ONCE,
-            "279211433385",
-            "us-east-2");
+            EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,
+            Toolchain.COMPONENT_ACCOUNT,
+            Toolchain.COMPONENT_REGION);
+
+        pipeline.buildPipeline();
     }
 }

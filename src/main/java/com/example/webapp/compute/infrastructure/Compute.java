@@ -73,14 +73,18 @@ public class Compute extends Construct{
         Role taskRole   =   createTaskRole();
         Role taskExecutionRole  =   createExecutionRole(strEnvType);
 
-        ApplicationLoadBalancedFargateService service = createFargateService(
-            APP_NAME, 
+        ApplicationLoadBalancedFargateService service = createFargateService( 
             cluster, 
             taskRole,
             taskExecutionRole, 
             strEnvType);
 
-        new BlueGreenDeploy(this, "CodeDeployBlueGreen", deployConfig, strEnvType, service);           
+        new BlueGreenDeploy(
+            this, 
+            "CodeDeployBlueGreen", 
+            deployConfig, 
+            strEnvType, 
+            service);           
 
         this.cluster = cluster;
         this.service = service;
@@ -88,15 +92,15 @@ public class Compute extends Construct{
         this.taskExecutionRole = taskExecutionRole;
     }
 
-    ApplicationLoadBalancedFargateService createFargateService(String appName, Cluster cluster, Role taskRole, Role executionRole, String strEnvType ){
+    ApplicationLoadBalancedFargateService createFargateService(Cluster cluster, Role taskRole, Role executionRole, String strEnvType ){
 
         ApplicationLoadBalancedFargateService service = ApplicationLoadBalancedFargateService.Builder.create(this, "Service")
             .desiredCount(2)
             .cluster(cluster)
-            .serviceName(appName)        
+            .serviceName(Constants.APP_NAME)        
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
             .securityGroups(Arrays.asList(this.sg))
-            .taskDefinition(createECSTask(new HashMap<String,String>(), appName, taskRole, executionRole))
+            .taskDefinition(createECSTask(new HashMap<String,String>(), Constants.APP_NAME, taskRole, executionRole))
             .loadBalancerName(Constants.APP_NAME+"Alb"+strEnvType)
             .listenerPort(80)
             .build();
