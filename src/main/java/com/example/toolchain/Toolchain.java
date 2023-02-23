@@ -2,6 +2,7 @@ package com.example.toolchain;
 
 import com.example.Constants;
 
+import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.codedeploy.EcsDeploymentConfig;
@@ -13,24 +14,21 @@ public class Toolchain extends Stack {
     public static final String CODECOMMIT_BRANCH          = "master";
 
     public static final String COMPONENT_ACCOUNT          = "222222222222";
-    public static final String COMPONENT_REGION           = "us-east-2";    
+    public static final String COMPONENT_REGION           = "us-east-1";    
 
     public Toolchain(final Construct scope, final String id, final StackProps props) throws Exception {
 
-        super(scope, id, props);        
-
-        Pipeline pipeline = new Pipeline(
-            this,
-            "BlueGreenPipeline", 
-            Toolchain.CODECOMMIT_REPO,
-            Toolchain.CODECOMMIT_BRANCH);
-
-        pipeline.addStage(
-            "UAT",
-            EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,
-            Toolchain.COMPONENT_ACCOUNT,
-            Toolchain.COMPONENT_REGION);
-
-        pipeline.buildPipeline();
+        super(scope, id, props);       
+        
+        Pipeline.Builder.create(this, "BlueGreenPipeline")
+            .setGitRepo(Toolchain.CODECOMMIT_REPO)
+            .setGitBranch(Toolchain.CODECOMMIT_BRANCH)
+            .addStage("UAT", 
+                EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES, 
+                Environment.builder()
+                    .account(COMPONENT_ACCOUNT)
+                    .region(COMPONENT_REGION)
+                    .build())
+            .build();
     }
 }
