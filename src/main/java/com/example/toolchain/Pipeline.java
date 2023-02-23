@@ -1,5 +1,6 @@
 package com.example.toolchain;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +45,7 @@ public class Pipeline extends Construct {
 
     private Map<String, Environment> stageEnvironment  =   new HashMap<>();
 
-    public Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
+    private Pipeline(Construct scope, final String id, final String gitRepoURL, final String gitBranch){
 
         super(scope,id);
 
@@ -55,14 +56,8 @@ public class Pipeline extends Construct {
             gitBranch);
     }
 
-    public Pipeline addStage(final String stageName,  final IEcsDeploymentConfig deployConfig, String account, String region) {
+    private Pipeline addStage(final String stageName, final IEcsDeploymentConfig deployConfig, final Environment env, final Boolean ADD_APPROVAL ) {
 
-        return addStage(stageName, deployConfig, account, region, Boolean.FALSE);
-    }    
-
-    public Pipeline addStage(final String stageName, final IEcsDeploymentConfig deployConfig, final String account, final String region, final Boolean ADD_APPROVAL ) {
-
-        Environment env = Environment.builder().region(region).account(account).build();
 
         //The stage
         Stage deployStage = Stage.Builder.create(pipeline, stageName).env(env).build();
@@ -102,25 +97,37 @@ public class Pipeline extends Construct {
             stageName)
         );
 
-        if( pipeline.getSelfMutationEnabled() && pipelineAccount != account ){
+        if( pipeline.getSelfMutationEnabled() && pipelineAccount != env.getAccount() ){
             stageEnvironment.put(stageName, env);
         }
         
         return this;
     }
 
-    public void buildPipeline(){
+    /**
+     * Self-mutating pipelines create a stage named UpdatePipeline. 
+     * AWS CodeDeploy uses configuration files to work properly and, depending on the use case (cross-account), 
+     * this files might need to be transferred to the target account. In order to transfer files, the CDK uses
+     * an account support stack with the prefix cross-account-support*. That stack needs permission to publish
+     * CodeDeploy artifacts in the target account and those permissions need to be associated with the role the
+     * UpdatePipeline project uses.
+     * 
+     * In detail, the information about stacks that depend on the current stack is only available at the time the app
+     * finishes synthesizing, and by that point, we have already locked-in the permissions, because they are part
+     * of the step.
+     * 
+     * So, in order to overcome this limitation, we are changing the role UpdatePipeline uses, allowing the 
+     * cross-account-support* stack to do file-publishing to the target account.
+     * 
+     * (https://github.com/aws/aws-cdk/pull/24073)
+     * 
+     */
+    private void buildPipeline(){
 
         if(!this.stageEnvironment.isEmpty()){
 
             this.pipeline.buildPipeline();
             for(String stage: stageEnvironment.keySet()){
-
-                //self-mutating pipelines create a stage named UpdatePipeline. 
-                //AWS CodeDeploy uses configuration files to work properly and, depending on the use case, this files might need to be transferred to the target account.
-                //UpdatePipeline is unaware of this at the time the pipeline is built. 
-                //As a result, we need to add a statement into the role it uses allowing it to publish-files to the target account.
-                //(https://github.com/aws/aws-cdk/pull/24073)
                  
                 HashMap<String,String[]> condition	=	new HashMap<>();
                 condition.put("iam:ResourceTag/aws-cdk:bootstrap-role", new String[]{"image-publishing", "file-publishing", "deploy"});            
@@ -186,7 +193,7 @@ public class Pipeline extends Construct {
         );     
     }     
 
-    CodePipeline createPipeline(String repoURL, String branch){
+    private CodePipeline createPipeline(String repoURL, String branch){
 
         CodePipelineSource  source  =   CodePipelineSource.codeCommit(
             Repository.fromRepositoryName(this, "code-repository", repoURL ),
@@ -210,4 +217,88 @@ public class Pipeline extends Construct {
                 .build())
             .build();
     }  
+
+    public static final class Builder implements software.amazon.jsii.Builder<Pipeline>{
+
+        private Construct scope;
+        private String id;
+        private String gitRepoURL;
+        private String gitBranch; 
+        private List<DeployConfig> stages = new ArrayList<>();
+
+        private Builder(final Construct scope, final String id){
+            this.scope = scope;
+            this.id = id;
+        }
+
+        public static Builder create(Construct scope, final String id){
+            return new Builder(scope, id);
+        }
+
+        public Builder setGitRepo(String gitRepoURL){
+            this.gitRepoURL = gitRepoURL;
+            return this;
+        }
+
+        public Builder setGitBranch(String gitBranch){
+            this.gitBranch = gitBranch;
+            return this;
+        }
+
+        public Builder addStage(String name, IEcsDeploymentConfig deployConfig, Environment env){
+            this.stages.add(new DeployConfig(name, deployConfig, env));
+            return this;
+        }
+
+        public Builder addStageWithApproval(String name, IEcsDeploymentConfig deployConfig, Environment env){
+            this.stages.add(new DeployConfig(name, deployConfig, env, Boolean.TRUE));
+            return this;
+        }        
+
+        public Pipeline build(){
+            Pipeline p = new Pipeline(this.scope, this.id, this.gitRepoURL, this.gitBranch );
+            for(DeployConfig d: stages){
+                p.addStage(d.getName(), d.getDeployConfig(), d.getEnv(), d.getApproval());
+            }
+            p.buildPipeline();
+            return p;
+        }
+
+        private static final class DeployConfig{
+
+            String name;
+            IEcsDeploymentConfig deployConfig;
+            Environment env;
+            Boolean approval = Boolean.FALSE;
+            
+            private DeployConfig(String name, IEcsDeploymentConfig deployConfig, Environment env){
+                this.name = name;
+                this.deployConfig = deployConfig;
+                this.env = env;
+            }
+
+            private DeployConfig(String name, IEcsDeploymentConfig deployConfig, Environment env, final Boolean IS_APPROVAL){
+                this.name = name;
+                this.deployConfig = deployConfig;
+                this.env = env;
+                this.approval = IS_APPROVAL;
+            }
+
+            public String getName(){
+                return name;
+            }
+
+            public IEcsDeploymentConfig getDeployConfig(){
+                return deployConfig;
+            }
+
+            public Environment getEnv(){
+                return env;
+            }
+
+            public Boolean getApproval(){
+                return approval;
+            }
+        }
+    }
 }

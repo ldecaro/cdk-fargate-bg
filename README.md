@@ -159,13 +159,18 @@ npx cdk deploy ExampleMicroserviceToolchain
 ```
 ## **The CI/CD Pipeline**
 
-The `Pipeline` construct instantiates new CI/CD pipelines that build Java based HTTP microservices. As a result, each new `Pipeline` comes with 2 stages: source and build. The example below shows how to create a new `Pipeline` using a construct id and repository information:
+The `Pipeline` construct instantiates new CI/CD pipelines that build Java based HTTP microservices. As a result, each new `Pipeline` comes with 2 stages: source and build. The example below shows how to create a new `Pipeline` using a construct the builder pattern that has been implemented throughout the CDK:
 ```java
-new Pipeline(
-    this,
-    "Pipeline",
-    Toolchain.CODECOMMIT_REPO,
-    Toolchain.CODECOMMIT_BRANCH);
+Pipeline.Builder.create(this, "BlueGreenPipeline")
+    .setGitRepo(Toolchain.CODECOMMIT_REPO)
+    .setGitBranch(Toolchain.CODECOMMIT_BRANCH)
+    .addStage("UAT", 
+        EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES, 
+        Environment.builder()
+            .account(COMPONENT_ACCOUNT)
+            .region(COMPONENT_REGION)
+            .build())
+    .build();
 ```
 
 A new `Pipeline` needs deployment stages. To add those, the method `addStage` needs to be invoked at least once. The `addStage` method creates deployment stages to different AWS accounts and regions. This feature enables the implementation of different scenarios going from single region (HA) to cross-region deployment scenarios (DR).
@@ -179,24 +184,22 @@ In detail:
 
         super(scope, id, props);           
 
-        Pipeline pipeline = new Pipeline(
-            this,
-            "BlueGreenPipeline", 
-            Toolchain.CODECOMMIT_REPO,
-            Toolchain.CODECOMMIT_BRANCH);
-
-        pipeline.addStage(
-            "UAT",
-            EcsDeploymentConfig.ALL_AT_ONCE,
-            Toolchain.COMPONENT_ACCOUNT,
-            Toolchain.COMPONENT_REGION);   
-            
-        pipeline.addStage(
-            "Prod",
-            EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,,
-            Toolchain.COMPONENT_ACCOUNT,
-            Toolchain.COMPONENT_REGION,
-            Pipeline.CONTINUOUS_DELIVERY);             
+        Pipeline.Builder.create(this, "BlueGreenPipeline")
+            .setGitRepo(Toolchain.CODECOMMIT_REPO)
+            .setGitBranch(Toolchain.CODECOMMIT_BRANCH)
+            .addStage("UAT", 
+                EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES, 
+                Environment.builder()
+                    .account(COMPONENT_ACCOUNT)
+                    .region(COMPONENT_REGION)
+                    .build())
+            .addStageWithApproval("Prod", 
+                EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES, 
+                Environment.builder()
+                    .account(COMPONENT_ACCOUNT)
+                    .region(COMPONENT_REGION)
+                    .build())                    
+            .build();        
     }
 
 ```

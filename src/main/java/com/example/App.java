@@ -6,11 +6,10 @@ import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
 /**
- * The application includes a Toolchain and an AWS CodeDeploy 
- * bootstrap stacks. The Toolchain creates a BlueGreen pipeline
- * that builds and deploys the Example component into multiple 
- * environments using AWS CodePipeline, AWS CodeBuild and 
- * AWS CodeDeploy. 
+ * The application includes a Toolchain stack. The Toolchain 
+ * creates a BlueGreen pipeline that builds and deploys 
+ * the Example component into multiple environments using 
+ * AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy. 
  * 
  * The BlueGreen pipeline supports the single-account and 
  * cross-account deployment models.
