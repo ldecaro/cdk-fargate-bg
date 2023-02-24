@@ -56,6 +56,10 @@
                     <exclude>**/*.java</exclude>
                     <exclude>**/codedeploy/*</exclude>
                 </excludes>
+                <targetPath>${project.build.directory}/classes</targetPath>
+                <includes>
+                    <include>**/*</include>
+                </includes>
             </resource>
         </resources>              
         <plugins>

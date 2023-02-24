@@ -13,7 +13,7 @@ public class Toolchain extends Stack {
     public static final String CODECOMMIT_REPO            = Constants.APP_NAME;
     public static final String CODECOMMIT_BRANCH          = "master";
 
-    public static final String COMPONENT_ACCOUNT          = "222222222222";
+    public static final String COMPONENT_ACCOUNT          = "742584497250";
     public static final String COMPONENT_REGION           = "us-east-1";    
 
     public Toolchain(final Construct scope, final String id, final StackProps props) throws Exception {
@@ -26,8 +26,8 @@ public class Toolchain extends Stack {
             .addStage("UAT", 
                 EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES, 
                 Environment.builder()
-                    .account(COMPONENT_ACCOUNT)
-                    .region(COMPONENT_REGION)
+                    .account(Toolchain.COMPONENT_ACCOUNT)
+                    .region(Toolchain.COMPONENT_REGION)
                     .build())
             .build();
     }
