@@ -1,10 +1,15 @@
 package com.example.toolchain;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.example.Constants;
 import com.example.webapp.WebApp;
@@ -172,25 +177,40 @@ public class Pipeline extends Construct {
         return deploymentGroup;
     }
 
+    /**
+     * Configures the appspec.yaml and taskdef.json replacing tokens with environment data.
+     * @param stageName
+     * @param account
+     * @param region
+     * @return
+     */
     private List<String> configureCodeDeploy(final String stageName, String account, String region ){
 
         final String pipelineId    =   ((Construct)pipeline).getNode().getId();
 
-        return Arrays.asList(
+        try {
 
-            "ls -l",
-            "ls -l codedeploy",
-            "repo_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1)",
-            "tag_name=$(cat assembly*"+pipelineId+"-"+stageName+"/*.assets.json | jq -r '.dockerImages | to_entries[0].key')", 
-            "echo ${repo_name}",
-            "echo ${tag_name}",
-            "printf '{\"ImageURI\":\"%s\"}' \""+account+".dkr.ecr."+region+".amazonaws.com/${repo_name}:${tag_name}\" > codedeploy/imageDetail.json",                    
-            "sed 's#APPLICATION#"+Constants.APP_NAME+"#g' codedeploy/template-appspec.yaml > codedeploy/appspec.yaml",
-            "sed 's#APPLICATION#"+Constants.APP_NAME+"#g' codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#"+"arn:aws:iam::"+account+":role/"+Constants.APP_NAME+"-"+stageName+"#g' | sed 's#fargate-task-definition#"+Constants.APP_NAME+"#g' > codedeploy/taskdef.json",
-            "cat codedeploy/appspec.yaml",
-            "cat codedeploy/taskdef.json",
-            "cat codedeploy/imageDetail.json"
-        );     
+            String path = "target/classes/"+this.getClass().getName().substring(0, this.getClass().getName().lastIndexOf(".")).replace(".", "/")+"/";
+            File f = new File(path+"codedeploy_configuration.txt");
+            System.out.println(f.getCanonicalPath());
+
+            List<String> commands = Files.lines(Paths.get(path+"codedeploy_configuration.txt"))                
+                .map(line->line.replace("{Account}", account))
+                .map(line->line.replace("{Region}", region))
+                .map(line->line.replace("{AppName}", Constants.APP_NAME))
+                .map(line->line.replace("{StageName}", stageName))
+                .map(line->line.replace("{PipelineId}", pipelineId))
+            .collect(Collectors.toList());
+
+            System.out.println(commands);
+
+            return commands;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Could not configure CodeDeploy. Could not load file codedeploy_configuration.txt");
+        }
+  
     }     
 
     private CodePipeline createPipeline(String repoURL, String branch){
@@ -301,4 +321,5 @@ public class Pipeline extends Construct {
             }
         }
     }
+
 }
