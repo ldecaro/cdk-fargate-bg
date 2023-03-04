@@ -161,7 +161,7 @@ npx cdk deploy ExampleMicroserviceToolchain
 
 The `Pipeline` construct instantiates new CI/CD pipelines that build Java based HTTP microservices. As a result, each new `Pipeline` comes with 2 stages: source and build. The example below shows how to create a new `Pipeline` using a construct the builder pattern that has been implemented throughout the CDK:
 ```java
-Pipeline.Builder.create(this, "BlueGreenPipeline")
+ContinuousIntegration.Builder.create(this, "BlueGreenPipeline")
     .setGitRepo(Toolchain.CODECOMMIT_REPO)
     .setGitBranch(Toolchain.CODECOMMIT_BRANCH)
     .addStage("UAT", 
@@ -184,7 +184,7 @@ In detail:
 
         super(scope, id, props);           
 
-        Pipeline.Builder.create(this, "BlueGreenPipeline")
+        ContinuousIntegration.Builder.create(this, "BlueGreenPipeline")
             .setGitRepo(Toolchain.CODECOMMIT_REPO)
             .setGitBranch(Toolchain.CODECOMMIT_BRANCH)
             .addStage("UAT", 
@@ -193,7 +193,7 @@ In detail:
                     .account(COMPONENT_ACCOUNT)
                     .region(COMPONENT_REGION)
                     .build())
-            .addStageWithApproval("Prod", 
+            .addStage("Prod", 
                 EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES, 
                 Environment.builder()
                     .account(COMPONENT_ACCOUNT)
@@ -204,7 +204,7 @@ In detail:
 
 ```
 
-Instances of `Pipeline` are self-mutating pipelines. This means that changes to the pipeline code that are added to the repository will be reflected to the existing pipeline next time it runs the stage `UpdatePipeline`. This is a convenience for adding stages as new environments need to be created. 
+Instances of `ContinousIntegration` are self-mutating pipelines. This means that changes to the pipeline code that are added to the repository will be reflected to the existing pipeline next time it runs the stage `UpdatePipeline`. This is a convenience for adding stages as new environments need to be created. 
 
 Another convenience in the `addStage` method is the support to a continuous delivery deployment type. If needed, the deployment stage may be configured to implement a manual approval stage action. In the example above, the stage `Prod` has been configured as CONTINUOUS_DELIVERY and it will bring an approval stage.
 
