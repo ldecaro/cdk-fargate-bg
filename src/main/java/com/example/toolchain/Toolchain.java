@@ -20,7 +20,9 @@ public class Toolchain extends Stack {
 
         super(scope, id, props);       
         
-        Pipeline.Builder.create(this, "BlueGreenPipeline")
+        //note that the ContinuousDeployment build() method encapsulates 
+        //implementaton details for adding role permissions in cross-account scenarios
+        ContinuousDeployment.Builder.create(this, "BlueGreenPipeline")
             .setGitRepo(Toolchain.CODECOMMIT_REPO)
             .setGitBranch(Toolchain.CODECOMMIT_BRANCH)
             .addStage("UAT", 
