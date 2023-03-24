@@ -1,11 +1,8 @@
-package com.example.webapp;
+package com.example.service;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.example.Constants;
-import com.example.webapp.compute.infrastructure.Compute;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.Duration;
@@ -37,7 +34,7 @@ import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.constructs.Construct;
 
-public class WebApp extends Stack {
+public class Service extends Stack {
 
     private static final String    ECS_TASK_CPU = "1024";
     private static final String    ECS_TASK_MEMORY = "2048";
@@ -49,36 +46,35 @@ public class WebApp extends Stack {
     ApplicationTargetGroup tgGreen   =   null;
     ApplicationListener listenerGreen = null;    
 
-
-    public WebApp(Construct scope, String id, IEcsDeploymentConfig deploymentConfig, StackProps props){
+    public Service(Construct scope, String id, IEcsDeploymentConfig deploymentConfig, StackProps props){
     
         super(scope, id, props);
 
-        String envType = this.getStackName().substring(this.getStackName().indexOf(Constants.APP_NAME)+Constants.APP_NAME.length());
-
         //uploading the green application to the ECR
-        DockerImageAsset.Builder.create(this, Constants.APP_NAME+"-container")
+        //maven default build dir is /target. Dockerfile is moved to /target so it can find the application jar (see pom.xml)
+        DockerImageAsset.Builder.create(this, "GreenContainer"+id)
             .directory("./target")
             .build();
 
+        //L3 ECS Pattern
          ApplicationLoadBalancedFargateService albService = ApplicationLoadBalancedFargateService.Builder.create(this, "Service")
             .desiredCount(2)
-            .serviceName(Constants.APP_NAME)        
+            .serviceName(id)        
             .deploymentController(DeploymentController.builder().type(DeploymentControllerType.CODE_DEPLOY).build())
-            .taskDefinition(createECSTask(new HashMap<String,String>(), Constants.APP_NAME, createTaskRole(), createTaskExecutionRole(envType)))
-            .loadBalancerName(Constants.APP_NAME+"Alb"+envType)
+            .taskDefinition(createECSTask(new HashMap<String,String>(), id, createTaskRole(), createTaskExecutionRole(id)))
+            .loadBalancerName("Alb"+id)
             .listenerPort(80)
             .build();
 
-        createGreenListener(albService, envType );        
+        createGreenListener(albService, id );        
 
         //configure AWS CodeDeploy Application and DeploymentGroup
         EcsApplication app = EcsApplication.Builder.create(this, "BlueGreenApplication")
-            .applicationName(Constants.APP_NAME+"-"+envType)
+            .applicationName(id)
             .build();
 
         EcsDeploymentGroup.Builder.create(this, "BlueGreenDeploymentGroup")
-            .deploymentGroupName(Constants.APP_NAME+"-"+envType)
+            .deploymentGroupName(id)
             .application(app)
             .service(albService.getService())
             .role(createCodeDeployExecutionRole())
@@ -90,11 +86,7 @@ public class WebApp extends Stack {
                     .terminationWaitTime(Duration.minutes(15))
                     .build())
             .deploymentConfig(deploymentConfig)
-            .build();
-
-        // In case the component has more resources, 
-        // ie. a dynamo table, a lambda implementing a dynamo stream and a monitoring capability
-        // they should be added here, as part of the component            
+            .build();       
 
         CfnOutput.Builder.create(this, "VPC")
             .description("Arn of the VPC ")
@@ -126,28 +118,28 @@ public class WebApp extends Stack {
 
         FargateTaskDefinition taskDef =    null;
         
-        taskDef =   FargateTaskDefinition.Builder.create(this, serviceName+"-EcsTaskDef")
+        taskDef =   FargateTaskDefinition.Builder.create(this, "EcsTaskDef"+serviceName)
             .taskRole(taskRole)
             .executionRole(executionRole)
-            .cpu(Integer.parseInt(WebApp.ECS_TASK_CPU))
-            .memoryLimitMiB(Integer.parseInt(WebApp.ECS_TASK_MEMORY))
+            .cpu(Integer.parseInt(Service.ECS_TASK_CPU))
+            .memoryLimitMiB(Integer.parseInt(Service.ECS_TASK_MEMORY))
             .family(serviceName)
             .build();    
 
-        taskDef.addContainer(serviceName+"-app", ContainerDefinitionOptions.builder()
+        taskDef.addContainer("App"+serviceName, ContainerDefinitionOptions.builder()
             .containerName(serviceName)
             .memoryReservationMiB(ECS_CONTAINER_MEMORY_RESERVATION)
             .memoryLimitMiB(ECS_CONTAINER_MEMORY_LIMIT)
             .image(ContainerImage.fromDockerImageAsset(        
                 DockerImageAsset.Builder
-                    .create(this, Constants.APP_NAME+"Container")
+                    .create(this, "BlueContainer"+serviceName)
                     .directory(getPathDockerfile())
                     .build()))
             .essential(Boolean.TRUE)
             .portMappings(Arrays.asList(
                 PortMapping.builder()
-                    .containerPort(WebApp.ECS_TASK_CONTAINER_PORT)
-                    .hostPort(WebApp.ECS_TASK_CONTAINER_HOST_PORT)
+                    .containerPort(Service.ECS_TASK_CONTAINER_PORT)
+                    .hostPort(Service.ECS_TASK_CONTAINER_HOST_PORT)
                     .protocol(Protocol.TCP)
                 .build()))          
             .environment(env)
@@ -156,6 +148,12 @@ public class WebApp extends Stack {
         return taskDef;
     }   
     
+    /**
+     * The Dockerfile of the blue version of the application is inside 
+     * a directory relative to this classpath (./compute/runtime-bootstrap)
+     * It gets loaded from /target/classes after project is built. This is the
+     * default build dir for java/maven
+     */
     private String getPathDockerfile(){
 
         String path = "./target/classes/";
@@ -167,7 +165,7 @@ public class WebApp extends Stack {
 
     Role createTaskRole(){
 
-        return Role.Builder.create(this, Constants.APP_NAME+"EcsTaskRole")
+        return Role.Builder.create(this, "EcsTaskRole"+getStackId())
             .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com").build())
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromAwsManagedPolicyName("CloudWatchFullAccess"), 
@@ -177,10 +175,10 @@ public class WebApp extends Stack {
             .build();        
     }
 
-    Role createTaskExecutionRole(final String strEnvType){
+    Role createTaskExecutionRole(final String id){
         
-        return Role.Builder.create(this, Constants.APP_NAME+"EcsExecutionRole")
-            .roleName(Constants.APP_NAME+"-"+strEnvType)
+        return Role.Builder.create(this, "EcsExecutionRole"+id)
+            .roleName(id)
             .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com").build())
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromManagedPolicyArn(
@@ -193,9 +191,9 @@ public class WebApp extends Stack {
 
     private Role createCodeDeployExecutionRole(){
 
-        return Role.Builder.create(this, Constants.APP_NAME+"CodeDeployExecRole")
+        return Role.Builder.create(this, "CodeDeployExecRole"+this.getStackId())
             .assumedBy(ServicePrincipal.Builder.create("codedeploy.amazonaws.com").build())
-            .description("CodeBuild Execution Role for "+Constants.APP_NAME)
+            .description("CodeBuild Execution Role for "+this.getStackId())
             .path("/")
             .managedPolicies(Arrays.asList(
                 ManagedPolicy.fromAwsManagedPolicyName("AWSCodeBuildDeveloperAccess"),
@@ -208,26 +206,26 @@ public class WebApp extends Stack {
             .build();
     }     
     
-    public void createGreenListener(ApplicationLoadBalancedFargateService albService, String envType){
+    public void createGreenListener(ApplicationLoadBalancedFargateService albService, String id){
 
         //create the green listener and target group
-        String tgGreenName = Constants.APP_NAME+"-"+envType+"-Green";
+        String tgGreenName = "GreenTG"+id;
         tgGreenName = tgGreenName.length()>32 ? tgGreenName.substring(tgGreenName.length()-32) : tgGreenName;
 
-        ApplicationTargetGroup tgGreen   =   ApplicationTargetGroup.Builder.create(this, Constants.APP_NAME+"GreenTg")
+        ApplicationTargetGroup tgGreen   =   ApplicationTargetGroup.Builder.create(this, "GreenTg"+id)
             .protocol(ApplicationProtocol.HTTP)
             .targetGroupName(tgGreenName)
             .targetType(TargetType.IP)
             .vpc(albService.getCluster().getVpc())
             .build();
 
-        ApplicationListener listenerGreen = albService.getLoadBalancer().addListener("BgListenerGreen", BaseApplicationListenerProps.builder()
+        ApplicationListener listenerGreen = albService.getLoadBalancer().addListener("GreenListener", BaseApplicationListenerProps.builder()
             .port(8080)
             .defaultTargetGroups(Arrays.asList(tgGreen))
             .protocol(ApplicationProtocol.HTTP)
             .build());
 
-        listenerGreen.addAction(Constants.APP_NAME+"ListenerGreenAction", AddApplicationActionProps.builder()
+        listenerGreen.addAction("GreenListenerAction"+id, AddApplicationActionProps.builder()
             .action(ListenerAction.forward(Arrays.asList( tgGreen )))
             .build()); 
             

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.example.Constants;
-import com.example.webapp.WebApp;
+import com.example.service.Service;
 
 import software.amazon.awscdk.Arn;
 import software.amazon.awscdk.ArnComponents;
@@ -34,7 +34,7 @@ import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.constructs.Construct;
 
-public class ContinuousDeployment extends Construct {
+public class ContinuousDeployment extends Stack {
 
     private CodePipeline pipeline   =   null;
 
@@ -42,9 +42,9 @@ public class ContinuousDeployment extends Construct {
         Construct scope, 
         String id, 
         String gitRepoURL, 
-        String gitBranch){
+        String gitBranch, StackProps props){
 
-        super(scope,id);
+        super(scope,id, props);
         pipeline   =   createPipeline(gitRepoURL, gitBranch);
     }
 
@@ -79,14 +79,14 @@ public class ContinuousDeployment extends Construct {
         Stage stage = Stage.Builder.create(pipeline, stageName).env(env).build();
 
         // My stack
-        new WebApp(
+        new Service(
             stage, 
-            "Component"+stageName,
+            Constants.APP_NAME+"-"+stageName,
             ecsDeploymentConfig,
             StackProps.builder()
-                .stackName(Constants.APP_NAME+stageName)
+                .stackName(Constants.APP_NAME+"-"+stageName)
                 .description(Constants.APP_NAME+"-"+stageName)
-                .build());                  
+                .build());
  
         StageDeployment stageDeployment = pipeline.addStage(stage);
 
@@ -109,7 +109,7 @@ public class ContinuousDeployment extends Construct {
 
         stageDeployment.addPre(configureCodeDeployStep);
    
-        //Deploy using AWS CodeDeploy
+        // Deploy using AWS CodeDeploy
         stageDeployment.addPost(
             new CodeDeployStep(            
             "codeDeploypreprod", 
@@ -192,7 +192,7 @@ public class ContinuousDeployment extends Construct {
         return pipeline.getSelfMutationEnabled();
     }
 
-    public static final class Builder implements software.amazon.jsii.Builder<ContinuousDeployment>{
+    public static final class Builder implements software.amazon.jsii.Builder<software.amazon.awscdk.Stack> {
 
         private Construct scope;
         private String id;
@@ -200,14 +200,9 @@ public class ContinuousDeployment extends Construct {
         private String gitBranch; 
         private List<StageConfig> stages = new ArrayList<>();
 
-        private Builder(final Construct scope, final String id){
-            this.scope = scope;
-            this.id = id;
-        }
+        private software.amazon.awscdk.StackProps props;        
 
-        public static Builder create(Construct scope, final String id){
-            return new Builder(scope, id);
-        }
+        public void test(){}
 
         public Builder setGitRepo(String gitRepoURL){
             this.gitRepoURL = gitRepoURL;
@@ -224,12 +219,13 @@ public class ContinuousDeployment extends Construct {
             return this;
         }
 
+
         public ContinuousDeployment build(){
 
             Map<String, Environment> stageNameEnvironment  =   new HashMap<>();
 
-            ContinuousDeployment pipeline = new ContinuousDeployment(this.scope, this.id, this.gitRepoURL, this.gitBranch );
-            String pipelineAccount = Stack.of(scope).getAccount();
+            ContinuousDeployment pipeline = new ContinuousDeployment(this.scope, this.id, this.gitRepoURL, this.gitBranch, this.props != null ? this.props : null );
+            String pipelineAccount = pipeline.getAccount();
 
             for(StageConfig stageConfig: stages){
 
@@ -239,15 +235,16 @@ public class ContinuousDeployment extends Construct {
                     stageConfig.getEnv(), 
                     stageConfig.getApproval());
 
-                if( pipeline.isSelfMutationEnabled() && pipelineAccount != stageConfig.getEnv().getAccount() ){
+                if( pipeline.isSelfMutationEnabled() && !pipelineAccount.equals(stageConfig.getEnv().getAccount()) ){
 
                     stageNameEnvironment.put(stageConfig.getStageName(), stageConfig.getEnv());
                 }                        
             }    
-
-            pipeline.addCodeDeployCrossAccountAssumeRolePermissions(stageNameEnvironment);
+            if(!stageNameEnvironment.isEmpty()){
+                pipeline.addCodeDeployCrossAccountAssumeRolePermissions(stageNameEnvironment);
+            }
             return pipeline;
-        }
+        }           
 
         private static final class StageConfig{
 
@@ -277,6 +274,41 @@ public class ContinuousDeployment extends Construct {
             public Boolean getApproval(){
                 return approval;
             }
+        }        
+
+        /**
+         * @return a new instance of {@link Builder}.
+         * @param scope Parent of this stack, usually an `App` or a `Stage`, but could be any construct.
+         * @param id The construct ID of this stack.
+         */
+        @software.amazon.jsii.Stability(software.amazon.jsii.Stability.Level.Stable)
+        public static Builder create(final software.constructs.Construct scope, final java.lang.String id) {
+            return new Builder(scope, id);
         }
-    }
+        /**
+         * @return a new instance of {@link Builder}.
+         * @param scope Parent of this stack, usually an `App` or a `Stage`, but could be any construct.
+         */
+        @software.amazon.jsii.Stability(software.amazon.jsii.Stability.Level.Stable)
+        public static Builder create(final software.constructs.Construct scope) {
+            return new Builder(scope, null);
+        }
+        /**
+         * @return a new instance of {@link Builder}.
+         */
+        @software.amazon.jsii.Stability(software.amazon.jsii.Stability.Level.Stable)
+        public static Builder create() {
+            return new Builder(null, null);
+        }
+
+        private Builder(final software.constructs.Construct scope, final java.lang.String id) {
+            this.scope = scope;
+            this.id = id;
+        }
+
+        public Builder stackProperties(StackProps props){
+            this.props = props;
+            return this;
+        }
+    }    
 }

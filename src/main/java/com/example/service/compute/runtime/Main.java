@@ -1,4 +1,4 @@
-package com.example.webapp.compute.runtime;
+package com.example.service.compute.runtime;
 
 import java.io.IOException;
 import java.net.InetAddress;

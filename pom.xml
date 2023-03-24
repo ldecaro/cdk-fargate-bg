@@ -8,7 +8,7 @@
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
     <!-- MAKE SURE TO CHANGE THE ARTIFACT ID AND ALSO CHANGE THE DIRECTORY STRUCTURE INSIDE -->
-    <name>webapp</name>
+    <name>service</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,7 +16,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <cdk.version>2.65.0</cdk.version>
         <component.dockerfile.location>src/main/java/com/example/${project.name}/compute/runtime</component.dockerfile.location>
-        <component.codedeploy.location>src/main/java/com/example/${project.name}/codedeploy</component.codedeploy.location>
+        <component.codedeploy.location>src/main/java/com/example/toolchain/codedeploy</component.codedeploy.location>
         <jersey.version>3.0.5</jersey.version>
         <junit.version>5.4.0</junit.version>
     </properties>
@@ -160,9 +160,9 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.example.App</mainClass>            
+                    <mainClass>com.example.Example</mainClass>            
                 </configuration>
-            </plugin>              
+            </plugin>          
         </plugins>
     </build>
 
