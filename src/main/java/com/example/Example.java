@@ -36,13 +36,12 @@ public class Example {
 
         // note that the ContinuousDeployment build() method encapsulates
         // implementaton details for adding role permissions in cross-account scenarios
-        ContinuousDeployment.Builder.create(app, Constants.APP_NAME)
+        ContinuousDeployment.Builder.create(app, Constants.APP_NAME+"Pipeline")
                 .stackProperties(StackProps.builder()
                         .env(Environment.builder()
                                 .account(Example.TOOLCHAIN_ACCOUNT)
                                 .region(Example.TOOLCHAIN_REGION)
                                 .build())
-                        .stackName(Constants.APP_NAME)
                         .build())
                 .setGitRepo(Example.CODECOMMIT_REPO)
                 .setGitBranch(Example.CODECOMMIT_BRANCH)
