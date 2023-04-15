@@ -1,10 +1,10 @@
+/* (C)2023 */
 package com.example.service.compute.runtime;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -14,35 +14,36 @@ import org.glassfish.jersey.server.ResourceConfig;
  *
  * @author Luiz Decaro
  */
-public class Main{
-	
-	public Main () {}
-    public static void main(String[] args){
-    	
-    	try{
-            System.out.println("Running Java Version: "+System.getProperty("java.version"));
+public class Main {
+
+    public Main() {}
+
+    public static void main(String[] args) {
+
+        try {
+            System.out.println("Running Java Version: " + System.getProperty("java.version"));
             System.out.println("\"Example\" Service");
 
             HttpServer server = (new Main()).startServer();
-            
+
             System.out.println("Application started.\n"
-            + "Try accessing " + Main.getBaseURI() + " in the browser.\n"
-            + "Hit ^C to stop the application...");        
+                    + "Try accessing " + Main.getBaseURI() + " in the browser.\n"
+                    + "Hit ^C to stop the application...");
             Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
                 @Override
-                public void run() {                    
+                public void run() {
                     server.shutdownNow();
                 }
             }));
 
             Thread.currentThread().join();
 
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Exception msg:"+e.getMessage());
-        }catch(Throwable t){
+            System.out.println("Exception msg:" + e.getMessage());
+        } catch (Throwable t) {
             t.printStackTrace();
-            System.out.println("Throwable msg:"+t.getMessage());
+            System.out.println("Throwable msg:" + t.getMessage());
         }
     }
 
@@ -52,14 +53,18 @@ public class Main{
      * @return new instance of the Grizzly HTTP server
      * @throws IOException
      */
-    HttpServer startServer() throws IOException {    
+    HttpServer startServer() throws IOException {
 
-        final ResourceConfig rc = new ResourceConfig().packages(this.getClass().getPackage().getName());
+        final ResourceConfig rc =
+                new ResourceConfig().packages(this.getClass().getPackage().getName());
         return GrizzlyHttpServerFactory.createHttpServer(Main.getBaseURI(), rc);
-    }    
+    }
 
     static URI getBaseURI() throws UnknownHostException {
-        String addr = "http://"+InetAddress.getLocalHost().toString().substring(0,InetAddress.getLocalHost().toString().indexOf("/"))+":"+getPort(8080)+"/";
+        String addr = "http://"
+                + InetAddress.getLocalHost()
+                        .toString()
+                        .substring(0, InetAddress.getLocalHost().toString().indexOf("/")) + ":" + getPort(8080) + "/";
         System.out.println(addr);
         return URI.create(addr);
     }
@@ -76,5 +81,5 @@ public class Main{
             }
         }
         return defaultPort;
-    }    
+    }
 }
