@@ -1,5 +1,5 @@
+/* (C)2023 */
 package com.example;
-
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,6 +12,6 @@ public class MyResourceTest {
      */
     @Test
     public void testGetIt() {
-        assertTrue( true );
+        assertTrue(true);
     }
 }
