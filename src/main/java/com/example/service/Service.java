@@ -66,7 +66,7 @@ public class Service extends Stack {
                         .type(DeploymentControllerType.CODE_DEPLOY)
                         .build())
                 .taskDefinition(
-                        createECSTask(new HashMap<String, String>(), id, createTaskRole(), createTaskExecutionRole(id)))
+                        createECSTask(new HashMap<String, String>(), id, createTaskRole(id), createTaskExecutionRole(id)))
                 .loadBalancerName("Alb" + id)
                 .listenerPort(80)
                 .build();
@@ -82,7 +82,7 @@ public class Service extends Stack {
                 .deploymentGroupName(id)
                 .application(app)
                 .service(albService.getService())
-                .role(createCodeDeployExecutionRole())
+                .role(createCodeDeployExecutionRole(id))
                 .blueGreenDeploymentConfig(EcsBlueGreenDeploymentConfig.builder()
                         .blueTargetGroup(albService.getTargetGroup())
                         .greenTargetGroup(tgGreen)
@@ -176,9 +176,9 @@ public class Service extends Stack {
         return path;
     }
 
-    Role createTaskRole() {
+    Role createTaskRole(final String id) {
 
-        return Role.Builder.create(this, "EcsTaskRole" + getStackId())
+        return Role.Builder.create(this, "EcsTaskRole" + id)
                 .assumedBy(ServicePrincipal.Builder.create("ecs-tasks.amazonaws.com")
                         .build())
                 .managedPolicies(Arrays.asList(
@@ -204,12 +204,12 @@ public class Service extends Stack {
                 .build();
     }
 
-    private Role createCodeDeployExecutionRole() {
+    private Role createCodeDeployExecutionRole(final String id) {
 
-        return Role.Builder.create(this, "CodeDeployExecRole" + this.getStackId())
+        return Role.Builder.create(this, "CodeDeployExecRole" + id)
                 .assumedBy(ServicePrincipal.Builder.create("codedeploy.amazonaws.com")
                         .build())
-                .description("CodeBuild Execution Role for " + this.getStackId())
+                .description("CodeBuild Execution Role for " + id)
                 .path("/")
                 .managedPolicies(Arrays.asList(
                         ManagedPolicy.fromAwsManagedPolicyName("AWSCodeBuildDeveloperAccess"),

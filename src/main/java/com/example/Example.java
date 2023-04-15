@@ -27,8 +27,8 @@ public class Example {
     public static final String CODECOMMIT_REPO = Constants.APP_NAME;
     public static final String CODECOMMIT_BRANCH = "master";
 
-    public static final String COMPONENT_ACCOUNT = "742584497250";
-    public static final String COMPONENT_REGION = "us-east-1";
+    public static final String COMPONENT_ACCOUNT = "279211433385";
+    public static final String COMPONENT_REGION = "us-east-2";
 
     public static void main(String args[]) throws Exception {
 
