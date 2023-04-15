@@ -25,7 +25,7 @@ public class Example {
     private static final String TOOLCHAIN_REGION = "us-east-1";
     // CodeCommit account is the same as the toolchain account
     public static final String CODECOMMIT_REPO = Constants.APP_NAME;
-    public static final String CODECOMMIT_BRANCH = "master";
+    public static final String CODECOMMIT_BRANCH = "main";
 
     public static final String COMPONENT_ACCOUNT = "279211433385";
     public static final String COMPONENT_REGION = "us-east-2";
