@@ -28,7 +28,7 @@ public class Example {
     public static final String CODECOMMIT_BRANCH = "main";
 
     public static final String COMPONENT_ACCOUNT = "279211433385";
-    public static final String COMPONENT_REGION = "us-east-2";
+    public static final String COMPONENT_REGION = "us-east-1";
 
     public static void main(String args[]) throws Exception {
 
