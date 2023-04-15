@@ -74,7 +74,7 @@ npx cdk synth
 git add src/main/java/com/example/Example.java
 git add cdk.context.json
 git commit -m "initial config"
-git push codecommit://Service --all
+git push codecommit://Service
 ```
 
 **4. One-Time Bootstrap**
@@ -93,7 +93,7 @@ Deploying AWS CDK apps into an AWS environment (a combination of an AWS account 
 **5. Deploy the Toolchain stack**
 It will deploy the microservice in the same account and region as the toolchain:
 ```
-npx cdk deploy Service
+npx cdk deploy ServicePipeline
 ```
 
 ### Cross-Acccount and Cross-Region
@@ -129,7 +129,7 @@ npx cdk synth
 git add src/main/java/com/example/Example.java
 git add cdk.context.json
 git commit -m "cross-account config"
-git push codecommit://Service --all
+git push codecommit://Service
 ```
 
 **4. One-Time Bootstrap**
@@ -151,7 +151,7 @@ For cross-account scenarios, the parameter ```--trust``` is required. For more i
 
 **5. Deploy the Toolchain stack**
 ```
-npx cdk deploy Service
+npx cdk deploy ServicePipeline
 ```
 ## **The CI/CD Pipeline**
 
