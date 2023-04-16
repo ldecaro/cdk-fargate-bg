@@ -8,5 +8,7 @@ RUN rm -rf ./*
 # Copy static assets over
 COPY ./index.html ./
 COPY ./nginx.conf /etc/nginx/
+USER aws
+HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
 # Containers run nginx with global directives and daemon off
 ENTRYPOINT ["nginx", "-g", "daemon off;"]
