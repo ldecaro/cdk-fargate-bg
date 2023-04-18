@@ -8,7 +8,10 @@ RUN rm -rf ./*
 # Copy static assets over
 COPY ./index.html ./
 COPY ./nginx.conf /etc/nginx/
-USER aws
-HEALTHCHECK CMD curl --fail http://localhost:8080 || exit 1
+# set file permissions for nginx user
+RUN chown -R nginx:nginx /var/cache/nginx /etc/nginx/
+# User guest on Alpine
+USER nginx
+HEALTHCHECK CMD curl http://localhost:8080 || exit 1
 # Containers run nginx with global directives and daemon off
 ENTRYPOINT ["nginx", "-g", "daemon off;"]
