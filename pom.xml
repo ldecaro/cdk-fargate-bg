@@ -14,10 +14,10 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <cdk.version>2.65.0</cdk.version>
+        <cdk.version>2.75.0</cdk.version>
         <component.dockerfile.location>src/main/java/com/example/${project.name}/compute/runtime</component.dockerfile.location>
         <component.codedeploy.location>src/main/java/com/example/toolchain/codedeploy</component.codedeploy.location>
-        <jersey.version>3.0.5</jersey.version>
+        <jersey.version>3.1.1</jersey.version>
         <junit.version>5.4.0</junit.version>
         <spotless.version>2.35.0</spotless.version>
         <palantirJavaFormat.version>2.10.0</palantirJavaFormat.version>        

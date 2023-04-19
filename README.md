@@ -319,3 +319,7 @@ The deployment model using AWS CodeDeploy will require changes to the properties
     ]
 }
 ```
+
+## License
+
+This project is licensed under the [MIT-0](LICENSE) license.
