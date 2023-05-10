@@ -256,8 +256,7 @@ aws s3 rm --recursive s3://service-pipelineservicepipelineartifactsbucketbd1-1xk
 - Destroy the stacks:
 
 ```
-#Remove all stacks including CodeDeployBootstrap
-npx cdk destroy "**"  # Includes the microservice deployments by the pipeline
+npx cdk destroy "**"  #Includes the microservice deployments by the pipeline
 ```
 If, for some reason, the destroy fails, just wait for it to finish and try again.
 
