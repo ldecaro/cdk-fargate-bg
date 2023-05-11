@@ -3,16 +3,7 @@
    "containerDefinitions": [ 
       { 
          "essential": true,
-         "image": "<IMAGE1_NAME>",
-         "logConfiguration": { 
-	         "logDriver": "awslogs",
-	         "options": { 
-	            "awslogs-group" : "/ecs/Service",
-	            "awslogs-region": "us-east-1",
-	            "awslogs-create-group": "true",
-	            "awslogs-stream-prefix": "ecs"
-	         }
-         },           
+         "image": "<IMAGE1_NAME>",          
          "name": "APPLICATION",
          "portMappings": [ 
             { 
