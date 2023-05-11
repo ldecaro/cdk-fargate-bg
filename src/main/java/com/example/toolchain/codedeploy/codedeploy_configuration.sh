@@ -20,6 +20,11 @@ Region=$2
 AppName=$3
 StageName=$4
 PipelineId=$5
+echo "Account: "$Account
+echo "Region: "$Region
+echo "AppName: "$AppName
+echo "StageName: "$StageName
+echo "PipelineId: "$PipelineId
 ls -l
 ls -l codedeploy
 repo_name=$(cat assembly*$PipelineId-$StageName/*.assets.json | jq -r '.dockerImages[] | .destinations[] | .repositoryName' | head -1) 
