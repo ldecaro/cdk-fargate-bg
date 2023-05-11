@@ -28,7 +28,7 @@ echo ${repo_name}
 echo ${tag_name} 
 printf '{"ImageURI":"%s"}' "$Account.dkr.ecr.$Region.amazonaws.com/${repo_name}:${tag_name}" > codedeploy/imageDetail.json                     
 sed 's#APPLICATION#'$AppName'#g' codedeploy/template-appspec.yaml > codedeploy/appspec.yaml 
-sed 's#APPLICATION#'$AppName'#g' codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#arn:aws:iam::'$Account':role/'$AppName'-'$StageName'#g' | sed 's#fargate-task-definition#'$Account'#g' > codedeploy/taskdef.json 
+sed 's#APPLICATION#'$AppName'#g' codedeploy/template-taskdef.json | sed 's#TASK_EXEC_ROLE#arn:aws:iam::'$Account':role/'$AppName'-'$StageName'#g' | sed 's#fargate-task-definition#'$AppName'-'$StageName'#g' > codedeploy/taskdef.json 
 cat codedeploy/appspec.yaml
 cat codedeploy/taskdef.json
 cat codedeploy/imageDetail.json
