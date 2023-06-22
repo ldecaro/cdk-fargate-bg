@@ -1,8 +1,9 @@
 /* (C)2023 */
-package com.example.toolchain;
+package com.example.demo.toolchain.infrastructure;
 
-import com.example.Constants;
-import com.example.service.Service;
+import com.example.demo.Constants;
+import com.example.demo.components.service.Service;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;

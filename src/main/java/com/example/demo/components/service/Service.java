@@ -1,5 +1,5 @@
 /* (C)2023 */
-package com.example.service;
+package com.example.demo.components.service;
 
 import java.util.Arrays;
 import java.util.HashMap;

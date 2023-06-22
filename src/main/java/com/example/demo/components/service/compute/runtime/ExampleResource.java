@@ -1,5 +1,5 @@
 /* (C)2023 */
-package com.example.service.compute.runtime;
+package com.example.demo.components.service.compute.runtime;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

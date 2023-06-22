@@ -1,5 +1,5 @@
 /* (C)2023 */
-package com.example.toolchain;
+package com.example.demo.toolchain.infrastructure;
 
 import java.util.Arrays;
 import software.amazon.awscdk.pipelines.CodePipelineActionFactoryResult;

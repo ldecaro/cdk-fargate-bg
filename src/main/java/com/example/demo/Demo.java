@@ -1,7 +1,8 @@
 /* (C)2023 */
-package com.example;
+package com.example.demo;
 
-import com.example.toolchain.ContinuousDeployment;
+import com.example.demo.toolchain.infrastructure.ContinuousDeployment;
+
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
@@ -19,7 +20,7 @@ import software.amazon.awscdk.services.codedeploy.EcsDeploymentConfig;
  *
  * See prerequisites (README.md) before running the application.
  */
-public class Example {
+public class Demo {
 
     private static final String TOOLCHAIN_ACCOUNT = "742584497250";
     private static final String TOOLCHAIN_REGION = "us-east-1";
@@ -39,18 +40,18 @@ public class Example {
         ContinuousDeployment.Builder.create(app, Constants.APP_NAME+"Pipeline")
                 .stackProperties(StackProps.builder()
                         .env(Environment.builder()
-                                .account(Example.TOOLCHAIN_ACCOUNT)
-                                .region(Example.TOOLCHAIN_REGION)
+                                .account(Demo.TOOLCHAIN_ACCOUNT)
+                                .region(Demo.TOOLCHAIN_REGION)
                                 .build())
                         .build())
-                .setGitRepo(Example.CODECOMMIT_REPO)
-                .setGitBranch(Example.CODECOMMIT_BRANCH)
+                .setGitRepo(Demo.CODECOMMIT_REPO)
+                .setGitBranch(Demo.CODECOMMIT_BRANCH)
                 .addStage(
                         "UAT",
                         EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,
                         Environment.builder()
-                                .account(Example.COMPONENT_ACCOUNT)
-                                .region(Example.COMPONENT_REGION)
+                                .account(Demo.COMPONENT_ACCOUNT)
+                                .region(Demo.COMPONENT_REGION)
                                 .build())
                 .build();
 

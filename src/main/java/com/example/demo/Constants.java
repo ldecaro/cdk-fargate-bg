@@ -1,5 +1,5 @@
 /* (C)2023 */
-package com.example;
+package com.example.demo;
 
 public interface Constants {
 
