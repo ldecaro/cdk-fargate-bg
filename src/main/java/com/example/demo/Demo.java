@@ -9,12 +9,13 @@ import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.codedeploy.EcsDeploymentConfig;
 
 /**
- * The application includes a Toolchain stack. The Toolchain
+ * The application includes a ContinuousDeployment stack. This stack
  * creates a continuous delivery pipeline that builds and deploys
- * the Example component into multiple environments using deployment
- * of type Blue/Green implemented using AWS CodePipeline, AWS CodeBuild
- * and AWS CodeDeploy.
- *
+ * the Service component into one or multiple environments. It uses 
+ * AWS CodePipeline, AWS CodeBuild and AWS CodeDeploy to implement a
+ * Blue/Green deployment. The Service component is part of a Demo
+ * application that belongs to Example.com.
+ * 
  * The Blue/Green pipeline supports the single-account and
  * cross-account deployment models.
  *
@@ -28,8 +29,8 @@ public class Demo {
     public static final String CODECOMMIT_REPO = Constants.APP_NAME;
     public static final String CODECOMMIT_BRANCH = "main";
 
-    public static final String COMPONENT_ACCOUNT = "279211433385";
-    public static final String COMPONENT_REGION = "us-east-1";
+    public static final String COMPONENT_ACCOUNT = Demo.TOOLCHAIN_ACCOUNT;
+    public static final String COMPONENT_REGION = Demo.TOOLCHAIN_REGION;
 
     public static void main(String args[]) throws Exception {
 

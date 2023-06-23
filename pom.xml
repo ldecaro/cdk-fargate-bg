@@ -157,7 +157,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>${project.groupId}.${project.name}.compute.runtime.Main</mainClass>
+                            <mainClass>${project.groupId}.components.${project.name}.compute.runtime.Main</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Class-Path>lib/</Class-Path>

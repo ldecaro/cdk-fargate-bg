@@ -2,11 +2,11 @@
 
 The project deploys a Java-based microservice using a CI/CD pipeline. The pipeline is implemented using the CDK Pipelines construct. The deployment uses AWS CodeDeploy Blue/Green deployment strategy. The microservice can be deployed in **single** or **cross-account** scenarios.
 
-![Architecture](/imgs/arch.png)
+![Architecture](/imgs/architecture-general.png)
 
-The AWS CDK application defines a top-level stack that deploys the CI/CD pipeline using AWS CodeDeploy in the specified AWS account and region. The pipeline can deploy the *Example* microservice to a single environment or multiple environments. The **blue** version of the *Example* microservice runtime code is deployed only once when the Example microservice is deployed the first time in an environment. Onwards, the **green** version of the Example microservice runtime code is deployed using AWS CodeDeploy. This Git repository contains the code of the Example microservice and its toolchain as a self-contained solution.
+The AWS CDK application defines a top-level stack that deploys the CI/CD pipeline using AWS CodeDeploy in the specified AWS account and region. The pipeline can deploy the *Service* to a single environment or multiple environments. The **blue** version of the *Service* runtime code is deployed only once when the Service is deployed the first time in an environment. Onwards, the **green** version of the Service runtime code is deployed using AWS CodeDeploy. This Git repository contains the code of the Service and its toolchain as a self-contained solution.
 
-[Considerations when managing ECS blue/green deployments using CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations) documentation includes the following: _"When managing Amazon ECS blue/green deployments using CloudFormation, you can't include updates to resources that initiate blue/green deployments and updates to other resources in the same stack update"_. The approach used in this project allows to update the Example microservice infrastructure and runtime code in a single commit. To achieve that, the project leverages AWS CodeDeploy's [deployment model](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html#deployment-configuration-ecs) using configuration files to allow updating all resources in the same Git commit.
+[Considerations when managing ECS blue/green deployments using CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/blue-green.html#blue-green-considerations) documentation includes the following: _"When managing Amazon ECS blue/green deployments using CloudFormation, you can't include updates to resources that initiate blue/green deployments and updates to other resources in the same stack update"_. The approach used in this project allows to update the Service infrastructure and runtime code in a single commit. To achieve that, the project leverages AWS CodeDeploy's [deployment model](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-configurations.html#deployment-configuration-ecs) using configuration files to allow updating all resources in the same Git commit.
 
 ## Prerequisites 
 
@@ -23,9 +23,9 @@ Although instructions in this document are specific for Linux environments, the 
 
 After all prerequisites are met, it usually takes around 10 minutes to follow the instructions below and deploy the AWS CDK Application for the first time. This approach supports all combinations of deploying the microservice and its toolchain to AWS accounts and Regions.
 
-### Push the example project to AWS CodeCommit
+### Push the project to AWS CodeCommit
 
-To make it easier following the example, the next steps create an AWS CodeCommit repository and use it as source. In this example, I'm authenticating into AWS CodeCommit using [git-remote-codecommit](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-git-remote-codecommit.html). Once you have `git-remote-codecommit` configured you can copy and paste the following commands:
+To make it easier following the example, the next steps create an AWS CodeCommit repository and use it as source. In this example, I'm authenticating into AWS CodeCommit using [git-remote-codecommit](https://docs.aws.amazon.com/codecommit/latest/userguide/setting-up-git-remote-codecommit.html). Once you have `git-remote-codecommit` configured, you can copy and paste the following commands:
 
 ```
 git clone https://github.com/ldecaro/cdk-fargate-bg.git
@@ -42,19 +42,19 @@ git push
 
 ## Deploy
 
-This approach supports all combinations of deploying the microservice and its toolchain to AWS accounts and Regions. Below you can find a walkthrough for two scenarios: 1/ single account and single region 2/ cross-account and cross-region.
+This approach supports all combinations of deploying the Service and its toolchain to AWS accounts and Regions. Below you can find a walkthrough for two scenarios: 1/ single account and single region 2/ cross-account and cross-region.
 
 ### Single Account and Single Region
 
 If you already executed the cross-account scenario you should [cleanup](#cleanup) first.
 
-![Architecture](/imgs/single-account-single-region.png)
+![Architecture](/imgs/region-single.png)
 
-Let's deploy the Example microservice in single account and single Region scenario. This can be accomplished in 5 steps.
+Service is a component from the *Demo* application. Let's deploy the Service in single account and single Region scenario. Demo application belongs to the *Example Corp*. This can be accomplished in 5 steps.
 
 **1. Configure environment**
 
-Edit `src/main/java/com/example/Example.java` and update value of the following 2 properties: account number and region:
+Edit `src/main/java/com/example/demo/Demo.java` and update value of the following 2 properties: account number and region:
 ```java
 
     public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
@@ -100,13 +100,13 @@ npx cdk deploy ServicePipeline
 
 If you already executed the single account and single region scenario you should [clean up](#cleanup) first.
 
-![Architecture](/imgs/cross-account-cross-region-2.png)
+![Architecture](/imgs/region-multi.png)
 
-Let's deploy the Example microservice in cross-account and cross-region scenario. This can be accomplished in 5 steps:
+Service is a component from the *Demo* application. Demo application belongs to the *Example Corp*. Let's deploy the Demo microservice in cross-account and cross-region scenario. This can be accomplished in 5 steps:
 
 **1. Configure environment:**
 
-Edit `src/main/java/com/example/Example.java` and update the following environment variables:
+Edit `src/main/java/com/example/Demo.java` and update the following environment variables:
 ```java
     //this is the account and region where the pipeline will be deployed
     public static final String TOOLCHAIN_ACCOUNT             = "111111111111";
@@ -233,11 +233,10 @@ Instances of `ContinousIntegration` are self-mutating pipelines. This means that
 
 Self-Mutating pipelines promote the notion of a self-contained solution where the toolchain code, microservice infrastructure code and microservice runtime code are all maintained inside the same Git repository. For more information, please check [this](https://aws.amazon.com/pt/blogs/developer/cdk-pipelines-continuous-delivery-for-aws-cdk-applications/) blog about CDK Pipelines.
 
-The image below shows an example pipeline created with two deployment stages named `UAT and Prod`:
+The image below shows an example pipeline created with a deployment stages named `UAT`:
 
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
-<img src="/imgs/pipeline-3.png" width=100% >
 
 ## **Stacks Created**
 
@@ -273,11 +272,11 @@ Once the deployment of the blue task is complete, you can find the public URL of
 
 Once acessed, the application will display a hello-world screen with some coloured circles representing the version of the application. At this point, refreshing the page repeatedly will show the different versions of the same application. The Blue and Green versions of this application will appear as in the image below:
 
-<img src="/imgs/blue-app.png" width=50% height=50%><img src="/imgs/green-app.png" width=50% height=50%>
+<img src="/imgs/app-blue.png" width=50% height=50%><img src="/imgs/app-green.png" width=50% height=50%>
 
 At the same time, you can view the deployment details using the console of the CodeDeploy: for that, Sign in to the AWS Management Console and open the CodeDeploy console at https://console.aws.amazon.com/codedeploy. In the navigation pane, expand **Deploy**, and then choose **Deployments**. Click to view the details of the deployment from application **Service-UAT** and you will be able to see the deployment status and traffic shifting progress (image below) :
 
-<img src="/imgs/CodeDeployDeployment.png" width=80%>
+<img src="/imgs/codedeploy-deployment.png" width=70%>
 
 ## Update log location
 
