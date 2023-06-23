@@ -172,7 +172,7 @@ ContinuousIntegration.Builder.create(this, "BlueGreenPipeline")
 
 The `addStage` method needs to be invoked at least once to add a deployment stage. When invoked, it can create deployment stages to different AWS accounts and regions. This feature enables the implementation of different scenarios, going from single region to cross-region deployment (DR).
 
-In the example below there is a pipeline that has two deployment stages: `UAT` (User Acceptance Test) and `Prod`. Each deployment stage has a name, a [deployment configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html) and environment information, such as, account and region where the component should be deployed.
+In the example below, there is a pipeline that has two deployment stages: `UAT` (User Acceptance Test) and `Prod`. Each deployment stage has a name, a [deployment configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html) and environment information, such as, account and Region where the component should be deployed.
 
 In detail:
 
@@ -233,14 +233,14 @@ Instances of `ContinousIntegration` are self-mutating pipelines. This means that
 
 Self-Mutating pipelines promote the notion of a self-contained solution where the toolchain code, microservice infrastructure code and microservice runtime code are all maintained inside the same Git repository. For more information, please check [this](https://aws.amazon.com/pt/blogs/developer/cdk-pipelines-continuous-delivery-for-aws-cdk-applications/) blog about CDK Pipelines.
 
-The image below shows an example pipeline created with a deployment stages named `UAT`:
+The image below shows an example pipeline created with a deployment stage named `UAT`:
 
 <img src="/imgs/pipeline-1.png" width=100% >
 <img src="/imgs/pipeline-2.png" width=100% >
 
 ## **Stacks Created**
 
-In a minimal deployment scenario, AWS CloudFormation will display two stacks: `ExampleMicroserviceToolchain` and `ExampleMicroservicePreProd`. CDKPipelines takes care of configuring permissions to CodeDeploy, KMS and pipeline artifacts. The `ExampleMicroserviceToolchain` stack deploys the pipeline and the `ExampleMicroservicePreProd` stack deploys the component in the `PreProd` environment. In this case, toolchain and `PreProd` were deployed in the same account and region.
+In a minimal deployment scenario, AWS CloudFormation will display two stacks: `ServicePipeline` and `Service-UAT`. CDKPipelines takes care of configuring permissions to CodeDeploy, KMS and S3 (pipeline artifacts). The `ServicePipeline` stack deploys the pipeline and the `Service-UAT` stack deploys the component in the `UAT` environment. In this case, pipeline and `UAT` were deployed in the same account and region.
 
 &nbsp;<img src="/imgs/stacks.png" >
 ## <a name="cleanup"></a> Clean up 
